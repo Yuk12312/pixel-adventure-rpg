@@ -703,13 +703,18 @@ function applyLanguage(){
   // Settings
   const sh=document.querySelector("#setting-screen h2");
   if(sh)sh.textContent=t("⚙️ 設定 / Settings","⚙️ Settings");
+  // Settings buttons by id (order-safe)
   const sfxBtn=document.getElementById("sfx-toggle-btn");
   if(sfxBtn)sfxBtn.textContent=SFX._enabled?t("🔊 音效：開","🔊 SFX: On"):t("🔇 音效：關","🔇 SFX: Off");
-  const sbtns=document.querySelectorAll("#setting-screen .btn");
-  if(sbtns[0])sbtns[0].textContent=t("🌐 切換語言 / Toggle Language","🌐 Toggle Language");
-  if(sbtns[1])sbtns[1].textContent=t("💾 手動存檔至欄位","💾 Manual Save to Slot");
-  if(sbtns[2])sbtns[2].textContent=t("🗑️ 重置所有存檔","🗑️ Reset All Saves");
-  if(sbtns[3])sbtns[3].textContent=t("← 返回","← Back");
+  const setBtns=document.querySelectorAll("#setting-screen > .btn");
+  setBtns.forEach(btn=>{
+    if(btn.id==="sfx-toggle-btn")return;
+    const oc=btn.getAttribute("onclick")||"";
+    if(oc.includes("toggleLang")) btn.textContent=t("🌐 切換語言","🌐 Toggle Language");
+    else if(oc.includes("showSaveSlots")) btn.textContent=t("💾 手動存檔至欄位","💾 Manual Save to Slot");
+    else if(oc.includes("resetAll")) btn.textContent=t("🗑️ 重置所有存檔","🗑️ Reset All Saves");
+    else if(oc.includes("backFromMenu")) btn.textContent=t("← 返回","← Back");
+  });
   // Guild / Shop / Alchemy / Blacksmith / Skill / Ruins
   const gh=document.querySelector("#guild-screen h2");
   if(gh)gh.textContent=t("🏛️ 工會","🏛️ Guild");
