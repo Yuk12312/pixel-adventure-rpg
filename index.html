@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Pixel Adventure RPG v23</title>
+<title>Pixel Adventure RPG v24</title>
 <style>
 :root{--bg:#0f0f0f;--panel:#1a1a1a;--border:#444;--accent:#00e6b8;--gold:#ffcc00;--danger:#ff5555;--text:#eee}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -47,7 +46,7 @@ button:active{background:#444}button:disabled{opacity:.45}
 
 <div id="title-screen" class="screen active">
   <h1>🧙 像素冒險 RPG</h1>
-  <div class="subtitle">v23 · 多存檔管理 + 語言切換加強</div>
+  <div class="subtitle">v24 · 釣魚 + 圖鑑 + 成就 + 四季 + NPC事件</div>
   <button class="menu-btn" onclick="startNewGame()">▶ 開始遊戲 / New Game</button>
   <button class="menu-btn" onclick="showSaveSlots('load')">📂 讀取存檔 / Load</button>
   <button class="menu-btn" onclick="showScreen('setting-screen')">⚙️ 設定 / Settings</button>
@@ -99,7 +98,7 @@ button:active{background:#444}button:disabled{opacity:.45}
     <div class="stat-item">🎯 AP <span id="ap">10</span>/<span id="maxAp">10</span></div>
     <div class="stat-item stat-full">✨ EXP <span id="exp">0</span>/<span id="maxExp">50</span> | 🏅 <span id="rank">F</span></div>
     <div class="stat-item stat-full">名氣 <span id="fame">0</span>（<span id="fameTitle">新手冒險者</span>）</div>
-    <div class="stat-item stat-full">👤 <span id="playerName">冒險者</span> | 天氣 <span id="weather">晴天</span></div>
+    <div class="stat-item stat-full">👤 <span id="playerName">冒險者</span> | <span id="season">春</span> | 天氣 <span id="weather">晴天</span></div>
   </div>
   <div class="map-grid" id="map"></div>
   <div class="dialogue-box" id="dialogue">你站在冒險者村莊的入口。</div>
@@ -183,7 +182,8 @@ function defaultGame(mode,diff,job){
     inv:{potion:3,mpPotion:1,food:2,capture:5,revive:1,atkPotion:0,defPotion:0,townScroll:1,skillStone:2,ore:{0:6,1:2},herb:{0:6,1:2},wood:{0:5,1:1}},
     equip:{head:null,body:null,pants:null,shoes:null,weapon:null,necklace:null,ring:null},
     skills:[],pets:[],activePet:null,mapEvents:{},gatherCount:0,commissions:[],refreshCost:5,ruinsFloor:1,ruinsHighest:1,
-    achievements:{firstKill:false,firstBoss:false,reach10:false,reach50:false,pet5:false,craft10:false},combo:0
+    achievements:{firstKill:false,firstBoss:false,reach10:false,reach20:false,pet3:false,fish10:false,npc5:false},combo:0,
+    season:"春",fishCaught:{},monSeen:{},matSeen:{},fishInv:{},gatherLevel:1,gatherExp:0
   };
 }
 
@@ -298,27 +298,44 @@ function updateUI(){
   document.getElementById("fameTitle").textContent=title;
   if(document.getElementById("playerName"))document.getElementById("playerName").textContent=G.name||"冒險者";
   if(document.getElementById("weather"))document.getElementById("weather").textContent=G.weather||"晴天";
+  if(document.getElementById("season"))document.getElementById("season").textContent=G.season||"春";
 }
 function totalAtk(){return G.atk+G.permanentAtk+(G.equip.weapon?.atk||0)+(G.activePet?.atk||0);}
 function totalDef(){let d=G.def;["head","body","pants","shoes","necklace","ring"].forEach(s=>{if(G.equip[s])d+=(G.equip[s].def||0);});return d;}
 function totalSpd(){let s=G.spd+(G.activePet?.spd||0);["head","body","pants","shoes","necklace","ring","weapon"].forEach(slot=>{if(G.equip[slot]&&G.equip[slot].spd)s+=G.equip[slot].spd;});return s;}
 
-function getTile(k){const f={"2,2":{icon:"🏘️",type:"village"},"2,1":{icon:"🌲",type:"forest"},"3,2":{icon:"💀",type:"boss"},"0,0":{icon:"⛏️",type:"mine"},"4,0":{icon:"🌿",type:"herb"},"0,4":{icon:"🪵",type:"wood"},"4,4":{icon:"🕳️",type:"ruins"}};return f[k];}
+function getTile(k){const f={"2,2":{icon:"🏘️",type:"village"},"2,1":{icon:"🌲",type:"forest"},"3,2":{icon:"💀",type:"boss"},"0,0":{icon:"⛏️",type:"mine"},"4,0":{icon:"🌿",type:"herb"},"0,4":{icon:"🪵",type:"wood"},"4,4":{icon:"🕳️",type:"ruins"},"1,2":{icon:"🎣",type:"fish"},"3,1":{icon:"🎣",type:"fish"}};return f[k];}
 function renderMap(){
-  let h="";for(let y=0;y<5;y++)for(let x=0;x<5;x++){const k=`${x},${y}`,isP=x===G.x&&y===G.y;let icon=isP?"🧙‍♂️":"🟩";const t=getTile(k);if(t)icon=t.icon;const ev=G.mapEvents[k];if(!isP&&ev){if(ev.type==="res")icon=ev.icon;else if(ev.type==="mon")icon=ev.icon;}h+=`<div class="map-cell ${isP?"player-here":""}">${icon}</div>`;}
+  let h="";for(let y=0;y<5;y++)for(let x=0;x<5;x++){const k=`${x},${y}`,isP=x===G.x&&y===G.y;let icon=isP?"🧙‍♂️":"🟩";const t=getTile(k);if(t)icon=t.icon;const ev=G.mapEvents[k];if(!isP&&ev){if(ev.type==="res")icon=ev.icon;else if(ev.type==="mon")icon=ev.icon;else if(ev.type==="npc")icon=ev.icon;}h+=`<div class="map-cell ${isP?"player-here":""}">${icon}</div>`;}
   document.getElementById("map").innerHTML=h;
 }
 function refreshDaily(){
   G.gatherCount=0;G.mapEvents={};G.refreshCost=5;generateAvailableQuests();
+  // 四季
+  const seasons=["春","夏","秋","冬"];
+  G.season=seasons[Math.floor((G.day-1)/30)%4];
+  // 天氣
   const weathers=["晴天","雨天","陰天","大霧","烈日"];
   G.weather=weathers[Math.floor(Math.random()*weathers.length)];
-  addLog(`今日天氣：${G.weather}`);
-  if(G.weather==="雨天"){G.maxStamina=Math.max(8,G.maxStamina-2);}
-  else if(G.weather==="烈日"){G.atk+=2;}
-  else if(G.weather==="大霧"){G.spd=Math.max(5,G.spd-2);}
+  addLog(`今日季節：${G.season} | 天氣：${G.weather}`);
+  // 資源
   const keys=["0,0","4,0","0,4","1,1","3,3","1,3"];
   keys.forEach(k=>{if(Math.random()<0.65){const types=[{res:"ore",icon:"⛏️"},{res:"herb",icon:"🌿"},{res:"wood",icon:"🪵"}];const t=types[Math.floor(Math.random()*3)];G.mapEvents[k]={type:"res",...t,rarity:Math.random()<0.65?0:(Math.random()<0.7?1:2)};}});
   if(Math.random()<0.4){const mon=MONSTERS[Math.floor(Math.random()*MONSTERS.length)];const pos=`${Math.floor(Math.random()*5)},${Math.floor(Math.random()*5)}`;if(pos!=="2,2")G.mapEvents[pos]={type:"mon",name:mon.name,icon:mon.icon,hp:mon.hp,atk:mon.atk,spd:mon.spd,rarity:mon.r};}
+  // 每日NPC 0-3個
+  const npcTypes=[
+    {type:"merchant",name:"商人",icon:"🛒"},
+    {type:"adventurer",name:"冒險者",icon:"⚔️"},
+    {type:"villager",name:"村民",icon:"👨"},
+    {type:"mystic",name:"神秘人",icon:"🎭"}
+  ];
+  const npcCount=Math.floor(Math.random()*4);
+  for(let n=0;n<npcCount;n++){
+    const pos=`${Math.floor(Math.random()*5)},${Math.floor(Math.random()*5)}`;
+    if(pos==="2,2"||G.mapEvents[pos])continue;
+    const nt=npcTypes[Math.floor(Math.random()*npcTypes.length)];
+    G.mapEvents[pos]={type:"npc",npcType:nt.type,name:nt.name,icon:nt.icon};
+  }
 }
 
 function move(dx,dy){if(G.stamina<=0){nextDay();return;}if(G.ap<=0){dialogue("行動點不足");return;}const nx=G.x+dx,ny=G.y+dy;if(nx<0||nx>4||ny<0||ny>4)return;G.x=nx;G.y=ny;G.stamina--;G.ap--;renderMap();checkTile();updateUI();saveGame();if(G.stamina<=0){dialogue("體力耗盡");setTimeout(nextDay,600);}}
@@ -327,9 +344,13 @@ function nextDay(){G.day++;if(G.mode==="normal"&&G.day>300){dialogue("300日已�
 
 function checkTile(){
   const k=`${G.x},${G.y}`,t=getTile(k),ev=G.mapEvents[k],opt=document.getElementById("options");opt.innerHTML="";
-  if(ev){if(ev.type==="res"){dialogue(`${ev.icon} ${ev.res}（${RARITY[ev.rarity]}）`);opt.innerHTML=`<button class="btn" onclick="gather('${k}')">採集</button>`;return;}if(ev.type==="mon"){dialogue(`${ev.icon} ${ev.name}`);opt.innerHTML=`<button class="btn" onclick="startBattle('${k}')">戰鬥</button>`;return;}}
+  if(ev){
+    if(ev.type==="res"){dialogue(`${ev.icon} ${ev.res}（${RARITY[ev.rarity]}）`);opt.innerHTML=`<button class="btn" onclick="gather('${k}')">採集</button>`;return;}
+    if(ev.type==="mon"){dialogue(`${ev.icon} ${ev.name}`);opt.innerHTML=`<button class="btn" onclick="startBattle('${k}')">戰鬥</button>`;return;}
+    if(ev.type==="npc"){dialogue(`${ev.icon} ${ev.name}`);opt.innerHTML=`<button class="btn" onclick="interactNpc('${k}')">互動</button>`;return;}
+  }
   if(!t){dialogue("平坦草地");return;}
-  if(t.type==="village"){dialogue("回到村莊");opt.innerHTML=`<button class="btn" onclick="rest()">旅店休息</button><button class="btn" onclick="showScreen('shop-screen')">🛒 商店</button><button class="btn" onclick="showScreen('guild-screen')">🏛️ 工會</button><button class="btn" onclick="showScreen('alchemy-screen')">🧪 煉藥所</button><button class="btn" onclick="showScreen('blacksmith-screen')">⚒️ 鐵匠舖</button><button class="btn" onclick="showScreen('skill-screen')">✨ 技能強化</button>`;}
+  if(t.type==="village"){dialogue("回到村莊");opt.innerHTML=`<button class="btn" onclick="rest()">旅店休息</button><button class="btn" onclick="showScreen('shop-screen')">🛒 商店</button><button class="btn" onclick="showScreen('guild-screen')">🏛️ 工會</button><button class="btn" onclick="showScreen('alchemy-screen')">🧪 煉藥所</button><button class="btn" onclick="showScreen('blacksmith-screen')">⚒️ 鐵匠舖</button><button class="btn" onclick="showScreen('skill-screen')">✨ 技能強化</button><button class="btn" onclick="showCodex()">📖 圖鑑</button>`;}
   else if(t.type==="forest"){dialogue("迷霧森林");opt.innerHTML=`<button class="btn" onclick="startForestBattle()">進入戰鬥</button>`;}
   else if(t.type==="boss"){
     if(G.day < G.bossRespawnDay){dialogue(`魔王尚未復活（還需 ${G.bossRespawnDay-G.day} 日）`);}
@@ -337,6 +358,7 @@ function checkTile(){
   }
   else if(t.type==="mine"||t.type==="herb"||t.type==="wood"){opt.innerHTML=`<button class="btn" onclick="gatherFixed('${t.type}')">採集</button>`;}
   else if(t.type==="ruins"){showScreen("ruins-screen");}
+  else if(t.type==="fish"){dialogue("釣魚點");opt.innerHTML=`<button class="btn" onclick="doFish()">釣魚 (1AP)</button>`;}
 }
 function dialogue(t){document.getElementById("dialogue").textContent=t;}
 
@@ -355,6 +377,7 @@ function startBossBattle(){
 function startBattle(k){const ev=G.mapEvents[k];startBattleWith({...ev,maxHp:ev.hp},k);}
 function startBattleWith(enemy,key){
   enemy.maxHp=enemy.maxHp||enemy.hp;
+  if(!G.monSeen)G.monSeen={};G.monSeen[enemy.name]=true;
   battle={enemy,key,playerDef:false,log:[],order:[],idx:0};G.combo=0;
   const actors=[{type:"player",spd:totalSpd()}];
   if(G.activePet&&G.activePet.hp>0)actors.push({type:"pet",spd:G.activePet.spd||8});
@@ -792,6 +815,79 @@ function upgradeRarity(res,r){
   G.inv[res][r+1]=(G.inv[res][r+1]||0)+1;
   addLog(`合成成功：3個${RARITY[r]}${res} → 1個${RARITY[r+1]}${res}`);
   updateUI();saveGame();renderBag();
+}
+function doFish(){
+  if(G.ap<1){alert("AP不足");return;}
+  G.ap--;
+  const fishes=[{n:"小魚",r:0,p:8},{n:"鯉魚",r:1,p:18},{n:"鱸魚",r:2,p:35},{n:"金魚",r:3,p:80},{n:"傳說魚",r:4,p:200}];
+  const roll=Math.random();
+  let f=fishes[0];
+  if(roll>0.92)f=fishes[4];else if(roll>0.8)f=fishes[3];else if(roll>0.55)f=fishes[2];else if(roll>0.3)f=fishes[1];
+  if(!G.fishInv)G.fishInv={};
+  G.fishInv[f.n]=(G.fishInv[f.n]||0)+1;
+  if(!G.fishCaught)G.fishCaught={};
+  G.fishCaught[f.n]=true;
+  addLog(`釣到【${f.n}】！`);
+  if(!G.achievements.fish10){let total=0;for(let k in G.fishInv)total+=G.fishInv[k];if(total>=10){G.achievements.fish10=true;G.gold+=80;addLog("🏆 成就：釣到10條魚！+80G");}}
+  updateUI();saveGame();checkTile();
+}
+function interactNpc(k){
+  const ev=G.mapEvents[k];
+  if(!ev)return;
+  delete G.mapEvents[k];
+  if(ev.npcType==="merchant"){
+    let sold=false;
+    ["ore","herb","wood"].forEach(res=>{
+      for(let r=0;r<5;r++){
+        const n=(G.inv[res]&&G.inv[res][r])||0;
+        if(n>0){
+          const price=(10+r*15)*n;
+          G.gold+=price;G.inv[res][r]=0;
+          addLog(`商人高價收購 ${RARITY[r]}${res} ×${n} +${price}G`);
+          sold=true;
+        }
+      }
+    });
+    if(!sold)addLog("商人：你沒有材料可賣");
+  }else if(ev.npcType==="adventurer"){
+    addLog("冒險者向你挑戰！");
+    const mon=MONSTERS[Math.floor(Math.random()*MONSTERS.length)];
+    startBattleWith({name:mon.name,icon:mon.icon,hp:mon.hp+20,atk:mon.atk+5,spd:mon.spd,rarity:mon.r,maxHp:0},null);
+    G.inv.skillStone=(G.inv.skillStone||0)+1;
+    addLog("戰勝冒險者！獲得強化石");
+  }else if(ev.npcType==="villager"){
+    let sold=false;
+    if(G.fishInv){
+      for(let fn in G.fishInv){
+        const n=G.fishInv[fn];
+        if(n>0){
+          const price=n*12;
+          G.gold+=price;G.fishInv[fn]=0;
+          addLog(`村民買走 ${fn} ×${n} +${price}G`);
+          sold=true;
+        }
+      }
+    }
+    if(!sold)addLog("村民：你沒有魚可賣");
+  }else if(ev.npcType==="mystic"){
+    const gifts=["potion","mpPotion","skillStone","food"];
+    const g=gifts[Math.floor(Math.random()*gifts.length)];
+    G.inv[g]=(G.inv[g]||0)+1;
+    addLog(`神秘人送給你 ${g}！`);
+  }
+  if(!G.achievements.npc5){G.achievements.npc5=(G.achievements.npc5||0)+1;if(G.achievements.npc5>=5){G.achievements.npc5=true;G.fame+=15;addLog("🏆 成就：與NPC互動5次！+15名氣");}}
+  updateUI();saveGame();renderMap();checkTile();
+}
+function showCodex(){
+  let h=`<div class="small mb-6">圖鑑</div>`;
+  h+=`<div class="small">=== 魚類 ===</div>`;
+  const allFish=["小魚","鯉魚","鱸魚","金魚","傳說魚"];
+  allFish.forEach(f=>{h+=`<div class="list-item"><span>${G.fishCaught&&G.fishCaught[f]?f:"???"}</span></div>`;});
+  h+=`<div class="small mt-6">=== 怪物 ===</div>`;
+  MONSTERS.forEach(m=>{h+=`<div class="list-item"><span>${G.monSeen&&G.monSeen[m.name]?m.name:"???"}</span></div>`;});
+  h+=`<button class="btn mt-6" onclick="checkTile()">← 返回</button>`;
+  document.getElementById("options").innerHTML=h;
+  dialogue("圖鑑");
 }
 </script>
 </body>
