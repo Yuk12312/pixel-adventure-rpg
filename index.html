@@ -7,7 +7,7 @@
 <style>
 :root{--bg:#0f0f0f;--panel:#1a1a1a;--border:#444;--accent:#00e6b8;--gold:#ffcc00;--danger:#ff5555;--text:#eee}
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:"Courier New",monospace;padding:8px;max-width:480px;margin:0 auto;line-height:1.4;font-size:13px}
+body{background:var(--bg);color:var(--text);font-family:"Courier New",monospace;padding:8px;max-width:var(--app-width,480px);width:100%;margin:0 auto;line-height:1.4;font-size:var(--ui-font,13px);transition:max-width .2s ease}
 button{cursor:pointer;font-family:inherit;border-radius:6px;border:1px solid var(--border);background:#222;color:var(--text);padding:8px 10px;font-size:13px}
 button:active{background:#444}button:disabled{opacity:.45}
 .screen{display:none}.screen.active{display:block}
@@ -72,35 +72,166 @@ button:active{background:#444}button:disabled{opacity:.45}
 #title-screen h1{text-shadow:0 0 12px rgba(255,200,80,.35)}
 
 
-/* Mobile-first game layout */
+
+/* ===== Responsive layout: phone / tablet / desktop ===== */
+:root{
+  --app-width:480px;
+  --ui-font:13px;
+  --map-cell:42px;
+  --dock-btn:44px;
+  --log-h:52px;
+}
 html,body{overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
 body{padding:6px;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));min-height:100dvh}
-#game-screen.active{display:flex !important;flex-direction:column;height:calc(100dvh - 12px);max-height:calc(100dvh - 12px);overflow:hidden}
+
+#game-screen.active{
+  display:flex !important;
+  flex-direction:column;
+  height:calc(100dvh - 12px);
+  max-height:calc(100dvh - 12px);
+  overflow:hidden;
+}
 #game-screen .game-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;min-height:0}
-#game-screen .game-dock{flex-shrink:0;background:#121212;border-top:1px solid #444;padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));z-index:30}
-.stats-panel{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1px 4px;font-size:11px;padding:5px 6px;margin-bottom:4px;background:#1c1c1c;border:1px solid var(--border);border-radius:6px}
+#game-screen .game-dock{
+  flex-shrink:0;
+  background:#121212;
+  border-top:1px solid #444;
+  padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));
+  z-index:30;
+}
+
+.stats-panel{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr 1fr;
+  gap:2px 6px;
+  font-size:calc(var(--ui-font) - 1px);
+  padding:6px 8px;
+  margin-bottom:4px;
+  background:#1c1c1c;
+  border:1px solid var(--border);
+  border-radius:6px;
+}
 .stat-item{color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .stat-full{grid-column:span 2}
 .stats-panel.compact .stat-extra{display:none}
 .stats-toggle{font-size:10px;color:#888;text-align:right;margin:-2px 0 4px;cursor:pointer;user-select:none}
-.map-grid{margin-bottom:4px;padding:4px}
-.map-cell{height:min(42px,11vw);min-height:34px}
-.dialogue-box{min-height:36px;max-height:64px;overflow-y:auto;margin-bottom:4px;padding:6px 8px;font-size:12px}
-.log-box{height:52px;margin-bottom:4px;font-size:10px;padding:4px 6px}
-.controls{gap:4px;margin-bottom:4px}
-.ctrl-btn{padding:12px 8px;font-size:16px;min-height:44px}
-#options{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0}
+
+.map-grid{margin-bottom:4px;padding:4px;gap:3px}
+.map-cell{
+  height:var(--map-cell);
+  min-height:34px;
+  font-size:calc(var(--map-cell) * 0.42);
+}
+.dialogue-box{min-height:36px;max-height:72px;overflow-y:auto;margin-bottom:4px;padding:6px 8px;font-size:var(--ui-font)}
+.log-box{height:var(--log-h);margin-bottom:4px;font-size:calc(var(--ui-font) - 2px);padding:4px 6px}
+.controls{gap:6px;margin-bottom:4px}
+.ctrl-btn{padding:10px 8px;font-size:16px;min-height:var(--dock-btn)}
+#options{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
 #options .btn{width:auto;flex:1 1 42%;margin:0;text-align:center;padding:10px 8px;min-height:40px}
-.game-dock .flex{gap:4px}
+.game-dock .flex{gap:6px}
 .game-dock .flex .btn{margin:0;text-align:center;padding:10px 6px;min-height:42px}
-.objective-bar{padding:5px 8px;margin-bottom:4px;font-size:11px}
+.objective-bar{padding:6px 8px;margin-bottom:4px;font-size:calc(var(--ui-font) - 1px)}
+.menu-btn{padding:12px;font-size:calc(var(--ui-font) + 1px)}
+.modal-box{max-width:min(400px,92vw)}
+
+/* Short phones */
 @media (max-height:720px){
-  .log-box{height:40px}
+  :root{--log-h:40px;--map-cell:36px}
   .stats-panel{font-size:10px}
 }
 @media (max-height:640px){
+  :root{--log-h:32px;--map-cell:32px}
   .stat-extra{display:none !important}
-  .log-box{height:32px}
+  .objective-bar{font-size:10px;padding:4px 6px}
+}
+
+/* Large phones / small tablets */
+@media (min-width:600px){
+  :root{
+    --app-width:560px;
+    --ui-font:14px;
+    --map-cell:52px;
+    --dock-btn:48px;
+    --log-h:64px;
+  }
+  body{padding:10px}
+  #title-screen h1{font-size:26px}
+  .menu-btn{padding:14px;font-size:15px}
+}
+
+/* Tablets */
+@media (min-width:768px){
+  :root{
+    --app-width:720px;
+    --ui-font:15px;
+    --map-cell:64px;
+    --dock-btn:52px;
+    --log-h:72px;
+  }
+  body{padding:14px 16px}
+  #game-screen.active{
+    height:calc(100dvh - 28px);
+    max-height:calc(100dvh - 28px);
+  }
+  /* Side-by-side map + info on tablet landscape feel when wide enough */
+  #game-screen .game-scroll.tablet-split{
+    display:grid;
+    grid-template-columns:1.1fr 0.9fr;
+    gap:10px;
+    align-content:start;
+  }
+  #game-screen .game-scroll.tablet-split .map-grid{grid-column:1;grid-row:1 / span 3}
+  #game-screen .game-scroll.tablet-split .objective-bar{grid-column:2}
+  #game-screen .game-scroll.tablet-split .dialogue-box{grid-column:2}
+  #game-screen .game-scroll.tablet-split .log-box{grid-column:2;height:120px}
+  #game-screen .game-scroll.tablet-split #options{grid-column:1 / -1}
+  #game-screen .game-scroll.tablet-split .stats-panel{grid-column:1 / -1}
+  #game-screen .game-scroll.tablet-split .stats-toggle{grid-column:1 / -1}
+  .ctrl-btn{font-size:18px}
+  .battle-log{height:min(160px,22vh) !important}
+}
+
+/* Desktop */
+@media (min-width:1024px){
+  :root{
+    --app-width:900px;
+    --ui-font:15px;
+    --map-cell:72px;
+    --dock-btn:48px;
+    --log-h:80px;
+  }
+  body{
+    padding:16px 20px;
+    box-shadow:none;
+  }
+  /* On desktop, dock doesn't need huge touch targets */
+  .ctrl-btn{min-height:44px;padding:10px;font-size:17px}
+  #game-screen .game-dock{
+    border:1px solid #333;
+    border-radius:8px 8px 0 0;
+    margin-top:6px;
+  }
+  #title-screen{padding-top:40px}
+  #title-screen h1{font-size:28px}
+  .menu-btn{max-width:420px;margin-left:auto;margin-right:auto}
+  #title-screen .menu-btn{display:block}
+}
+
+/* Very wide desktop: keep content centered, don't stretch forever */
+@media (min-width:1280px){
+  :root{--app-width:960px;--map-cell:76px}
+}
+
+/* Landscape phones: prioritize controls visibility */
+@media (max-height:420px) and (orientation:landscape){
+  :root{--map-cell:28px;--log-h:28px;--dock-btn:40px}
+  .stats-panel{font-size:10px}
+  .stat-extra,.stats-toggle{display:none !important}
+  .objective-bar{display:none}
+  #game-screen.active{height:100dvh;max-height:100dvh}
+}
+
+.log-box{height:32px}
   .objective-bar{font-size:10px;padding:4px 6px}
 }
 
@@ -274,10 +405,7 @@ function defaultGame(mode,diff,job){
 function showScreen(id){
   document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
   document.getElementById(id).classList.add("active");
-  if(id==="game-screen"){
-    const sp=document.getElementById("stats-panel");
-    if(sp && window.innerHeight<720) sp.classList.add("compact");
-  }
+  if(id==="game-screen"){try{applyResponsiveLayout();}catch(e){}}
   if(id==="quest-screen")renderQuests();
   if(id==="pet-screen")renderPets();
   if(id==="bag-screen")renderBag();
