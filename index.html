@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Pixel Adventure RPG v19</title>
+<title>Pixel Adventure RPG v20</title>
 <style>
 :root{--bg:#0f0f0f;--panel:#1a1a1a;--border:#444;--accent:#00e6b8;--gold:#ffcc00;--danger:#ff5555;--text:#eee}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -46,7 +46,7 @@ button:active{background:#444}button:disabled{opacity:.45}
 
 <div id="title-screen" class="screen active">
   <h1>🧙 像素冒險 RPG</h1>
-  <div class="subtitle">v19 · 商店分掣 + 材料合成 + UI調整</div>
+  <div class="subtitle">v20 · 任務調整 + 遺跡記錄 + 難度顏色</div>
   <button class="menu-btn" onclick="startNewGame()">▶ 開始遊戲</button>
   <button class="menu-btn" onclick="continueGame()">📂 繼續遊戲</button>
   <button class="menu-btn" onclick="showScreen('setting-screen')">⚙️ 設定</button>
@@ -506,16 +506,21 @@ function releasePet(i){if(confirm(`確定放生 ${G.pets[i].name}？`)){if(G.act
 
 function generateAvailableQuests(){
   availableQuests=[];
-  const types=[["Hunt","討伐怪物",3],["Gather","採集資源",4],["Explore","探索地點",2]];
+  const types=[["Hunt","討伐怪物",3],["Gather","採集資源",4]];
   for(let i=0;i<4;i++){
-    const t=types[Math.floor(Math.random()*3)];
-    availableQuests.push({type:t[0],desc:t[1],need:t[2]+Math.floor(Math.random()*2),progress:0,reward:35+Math.floor(Math.random()*40),fame:4});
+    const t=types[Math.floor(Math.random()*types.length)];
+    const diff=Math.random()<0.5?0:(Math.random()<0.6?1:2); // 0普通 1困難 2極難
+    const need=t[2]+diff+Math.floor(Math.random()*2);
+    const reward=35+diff*25+Math.floor(Math.random()*40);
+    availableQuests.push({type:t[0],desc:t[1],need,progress:0,reward,fame:4+diff*2,diff});
   }
 }
 function renderGuild(){
   let h=`<div>冒險者等級 ${G.rank} | 名氣 ${G.fame}</div><div class="small mb-6">下次刷新費用：${G.refreshCost}G</div>`;
   availableQuests.forEach((q,i)=>{
-    h+=`<div class="quest-card"><b>${q.type}</b> - ${q.desc}<div class="small">需求：${q.need} | 獎勵：${q.reward}G</div>
+    const diffColor=q.diff===2?"r4":q.diff===1?"r3":"r1";
+    const diffName=q.diff===2?"極難":q.diff===1?"困難":"普通";
+    h+=`<div class="quest-card"><b class="${diffColor}">${q.type}</b> - ${q.desc} <span class="tag ${q.diff===2?"red":q.diff===1?"gold":"green"}">${diffName}</span><div class="small">需求：${q.need} | 獎勵：${q.reward}G</div>
       <button class="btn small mt-6" onclick="acceptQuest(${i})">接取</button></div>`;
   });
   h+=`<button class="btn mt-6" onclick="refreshQuests()">刷新任務列表 (${G.refreshCost}G)</button>`;
@@ -528,7 +533,9 @@ function renderQuests(){
   let h=`<div class="small">目前 ${G.commissions.length}/6</div>`;
   G.commissions.forEach((c,i)=>{
     const canSubmit = c.progress >= c.need;
-    h+=`<div class="list-item"><div><b>${c.type}</b> ${c.desc}<div class="small">進度 ${c.progress}/${c.need} 獎勵 ${c.reward}G</div></div>
+    const diffColor=c.diff===2?"r4":c.diff===1?"r3":"r1";
+    const diffName=c.diff===2?"極難":c.diff===1?"困難":"普通";
+    h+=`<div class="list-item"><div><b class="${diffColor}">${c.type}</b> ${c.desc} <span class="tag ${c.diff===2?"red":c.diff===1?"gold":"green"}">${diffName}</span><div class="small">進度 ${c.progress}/${c.need} 獎勵 ${c.reward}G</div></div>
       <div>
         <button class="btn small" onclick="submitQ(${i})" ${!canSubmit?"disabled":""}>提交</button>
         <button class="btn small danger" onclick="abandonQ(${i})">放棄</button>
@@ -651,7 +658,10 @@ function craftEquip(slot,r){
 function renderSkillEnhance(){if(!G.skills.length){document.getElementById("skill-content").innerHTML="<div class='small'>無技能</div>";return;}let h=`<div class="small">強化石：${G.inv.skillStone||0}</div>`;G.skills.forEach((sk,i)=>{h+=`<div class="list-item"><div>${sk.name} +${sk.enhance||0} (MP ${sk.mp})</div><button class="btn small" onclick="enhSkill(${i})">強化</button></div>`;});document.getElementById("skill-content").innerHTML=h;}
 function enhSkill(i){if((G.inv.skillStone||0)<1){alert("強化石不足");return;}G.inv.skillStone--;if(Math.random()<Math.max(0.2,0.95-(G.skills[i].enhance||0)*0.1)){G.skills[i].enhance=(G.skills[i].enhance||0)+1;addLog(`${G.skills[i].name} 強化成功`);}else addLog("強化失敗");saveGame();renderSkillEnhance();}
 
-function renderRuins(){document.getElementById("ruins-content").innerHTML=`<div>目前層數：${G.ruinsFloor}/100</div><button class="btn mt-6" onclick="exploreRuins()">探索當前層 (1AP)</button>`;}
+function renderRuins(){
+  const recent=eventLog.slice(-5).map(m=>`<div class="small">${m}</div>`).join("")||"<div class='small'>暫無記錄</div>";
+  document.getElementById("ruins-content").innerHTML=`<div>目前層數：${G.ruinsFloor}/100</div><div class="log-box" style="height:80px;margin:6px 0">${recent}</div><button class="btn mt-6" onclick="exploreRuins()">探索當前層 (1AP)</button><button class="btn" onclick="showScreen('game-screen')">← 返回地圖</button>`;
+}
 function exploreRuins(){if(G.ap<1){alert("AP不足");return;}G.ap--;const f=G.ruinsFloor;if(f%10===0){addLog(`第 ${f} 層 Boss 戰勝利`);G.gold+=30+f;if(Math.random()<0.6){const rar=f>=50?3:f>=25?2:1;G.equip.necklace={name:RARITY[rar]+"項鏈",def:2+rar*2,rarity:rar};addLog("獲得飾品！");}G.ruinsFloor++;if(f===100){G.ruinsClears++;G.permanentAtk+=5*G.ruinsClears;G.ruinsFloor=1;addLog("通關第100層！永久攻擊提升");}}else{const r=Math.random();if(r<0.35){G.fromRuins=true;startForestBattle();return;}else if(r<0.5){G.hp=Math.max(1,G.hp-10);addLog("觸發陷阱");}else if(r<0.65){G.gold+=15;addLog("找到普通寶箱");}else addLog("無事發生");G.ruinsFloor++;}G.ruinsHighest=Math.max(G.ruinsHighest,G.ruinsFloor);updateUI();saveGame();renderRuins();}
 
 function renderBag(){
