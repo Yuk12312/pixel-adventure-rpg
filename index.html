@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Pixel Adventure RPG v20</title>
+<title>Pixel Adventure RPG v21</title>
 <style>
 :root{--bg:#0f0f0f;--panel:#1a1a1a;--border:#444;--accent:#00e6b8;--gold:#ffcc00;--danger:#ff5555;--text:#eee}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -46,7 +46,7 @@ button:active{background:#444}button:disabled{opacity:.45}
 
 <div id="title-screen" class="screen active">
   <h1>🧙 像素冒險 RPG</h1>
-  <div class="subtitle">v20 · 任務調整 + 遺跡記錄 + 難度顏色</div>
+  <div class="subtitle">v21 · 修復合成 + 遺跡寶箱 + 細節優化</div>
   <button class="menu-btn" onclick="startNewGame()">▶ 開始遊戲</button>
   <button class="menu-btn" onclick="continueGame()">📂 繼續遊戲</button>
   <button class="menu-btn" onclick="showScreen('setting-screen')">⚙️ 設定</button>
@@ -662,7 +662,21 @@ function renderRuins(){
   const recent=eventLog.slice(-5).map(m=>`<div class="small">${m}</div>`).join("")||"<div class='small'>暫無記錄</div>";
   document.getElementById("ruins-content").innerHTML=`<div>目前層數：${G.ruinsFloor}/100</div><div class="log-box" style="height:80px;margin:6px 0">${recent}</div><button class="btn mt-6" onclick="exploreRuins()">探索當前層 (1AP)</button><button class="btn" onclick="showScreen('game-screen')">← 返回地圖</button>`;
 }
-function exploreRuins(){if(G.ap<1){alert("AP不足");return;}G.ap--;const f=G.ruinsFloor;if(f%10===0){addLog(`第 ${f} 層 Boss 戰勝利`);G.gold+=30+f;if(Math.random()<0.6){const rar=f>=50?3:f>=25?2:1;G.equip.necklace={name:RARITY[rar]+"項鏈",def:2+rar*2,rarity:rar};addLog("獲得飾品！");}G.ruinsFloor++;if(f===100){G.ruinsClears++;G.permanentAtk+=5*G.ruinsClears;G.ruinsFloor=1;addLog("通關第100層！永久攻擊提升");}}else{const r=Math.random();if(r<0.35){G.fromRuins=true;startForestBattle();return;}else if(r<0.5){G.hp=Math.max(1,G.hp-10);addLog("觸發陷阱");}else if(r<0.65){G.gold+=15;addLog("找到普通寶箱");}else addLog("無事發生");G.ruinsFloor++;}G.ruinsHighest=Math.max(G.ruinsHighest,G.ruinsFloor);updateUI();saveGame();renderRuins();}
+function exploreRuins(){if(G.ap<1){alert("AP不足");return;}G.ap--;const f=G.ruinsFloor;if(f%10===0){addLog(`第 ${f} 層 Boss 戰勝利`);G.gold+=30+f;if(Math.random()<0.6){const rar=f>=50?3:f>=25?2:1;G.equip.necklace={name:RARITY[rar]+"項鏈",def:2+rar*2,rarity:rar,enhance:0};addLog("獲得飾品！");}G.ruinsFloor++;if(f===100){G.ruinsClears++;G.permanentAtk+=5*G.ruinsClears;G.ruinsFloor=1;addLog("通關第100層！永久攻擊提升");}}else{const r=Math.random();if(r<0.35){G.fromRuins=true;startForestBattle();return;}else if(r<0.5){G.hp=Math.max(1,G.hp-10);addLog("觸發陷阱");}else if(r<0.7){openRuinsChest(f);}else addLog("無事發生");G.ruinsFloor++;}G.ruinsHighest=Math.max(G.ruinsHighest,G.ruinsFloor);updateUI();saveGame();renderRuins();}
+function openRuinsChest(f){
+  const gold=20+Math.floor(f*1.5)+Math.floor(Math.random()*20);
+  G.gold+=gold;
+  let msg=`打開寶箱！獲得 ${gold}G`;
+  if(Math.random()<0.4){G.inv.skillStone=(G.inv.skillStone||0)+1;msg+=" +強化石";}
+  if(Math.random()<0.25){
+    const res=["ore","herb","wood"][Math.floor(Math.random()*3)];
+    const rar=Math.min(4,Math.floor(f/25)+Math.floor(Math.random()*2));
+    if(!G.inv[res])G.inv[res]={};
+    G.inv[res][rar]=(G.inv[res][rar]||0)+1;
+    msg+=` +${RARITY[rar]}${res}`;
+  }
+  addLog(msg);
+}
 
 function renderBag(){
   const tabs=[{id:"cons",n:"消耗品"},{id:"equip",n:"裝備"},{id:"mat",n:"材料"}];
@@ -682,11 +696,11 @@ function renderBag(){
   else{
     h+=`<div class="small mb-6">材料可進行3合1稀有度升級</div>`;
     ["ore","herb","wood"].forEach(res=>{
-      for(let i=0;i<4;i++){
+      for(let i=0;i<=4;i++){
         const n=(G.inv[res]&&G.inv[res][i])||0;
         if(n>0){
           h+=`<div class="list-item"><span class="r${i}">${res}（${RARITY[i]}）×${n}</span>`;
-          if(n>=3)h+=`<button class="btn small" onclick="upgradeRarity('${res}',${i})">合成</button>`;
+          if(i<4 && n>=3)h+=`<button class="btn small" onclick="upgradeRarity('${res}',${i})">合成</button>`;
           h+=`</div>`;
         }
       }
@@ -728,11 +742,12 @@ function showRarityUpgrade(){
   dialogue("稀有度合成");
 }
 function upgradeRarity(res,r){
-  const have=(G.inv[res]&&G.inv[res][r])||0;
-  if(have<3){alert("需要至少3個");return;}
-  G.inv[res][r]-=3;
-  if(!G.inv[res][r+1])G.inv[res][r+1]=0;
-  G.inv[res][r+1]++;
+  if(!G.inv[res])G.inv[res]={};
+  const have=G.inv[res][r]||0;
+  if(have<3){alert("需要至少3個"+RARITY[r]+res);return;}
+  G.inv[res][r]=have-3;
+  if(G.inv[res][r]<=0)delete G.inv[res][r];
+  G.inv[res][r+1]=(G.inv[res][r+1]||0)+1;
   addLog(`合成成功：3個${RARITY[r]}${res} → 1個${RARITY[r+1]}${res}`);
   updateUI();saveGame();renderBag();
 }
