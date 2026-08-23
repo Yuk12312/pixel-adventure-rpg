@@ -1,6 +1,5 @@
-
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
@@ -46,44 +45,44 @@ button:active{background:#444}button:disabled{opacity:.45}
 <body>
 
 <div id="title-screen" class="screen active">
-  <h1>🧙 像素冒險 RPG</h1>
-  <div class="subtitle">v30 · 圖鑑分類 + 解鎖加成</div>
-  <button class="menu-btn" onclick="startNewGame()">▶ 開始遊戲 / New Game</button>
-  <button class="menu-btn" onclick="showSaveSlots('load')">📂 讀取存檔 / Load</button>
-  <button class="menu-btn" onclick="showScreen('setting-screen')">⚙️ 設定 / Settings</button>
+  <h1>🧙 Pixel Adventure RPG</h1>
+  <div class="subtitle">v30 · Codex Categories + Unlock Bonuses</div>
+  <button class="menu-btn" onclick="startNewGame()">▶ New Game</button>
+  <button class="menu-btn" onclick="showSaveSlots('load')">📂 Load</button>
+  <button class="menu-btn" onclick="showScreen('setting-screen')">⚙️ Settings</button>
   <div id="save-slots" style="display:none;margin-top:10px"></div>
 </div>
 
 <div id="name-screen" class="screen">
-  <h2 class="text-center mb-6">輸入你的冒險者名字</h2>
-  <input id="player-name-input" type="text" maxlength="12" placeholder="輸入名字..." style="width:100%;padding:12px;background:#222;border:1px solid #666;color:#eee;border-radius:6px;font-size:16px;margin-bottom:12px;font-family:inherit">
-  <button class="menu-btn" onclick="confirmName()">確認名字</button>
-  <button class="btn" onclick="showScreen('title-screen')">← 返回</button>
+  <h2 class="text-center mb-6">Enter Adventurer Name</h2>
+  <input id="player-name-input" type="text" maxlength="12" placeholder="Enter name..." style="width:100%;padding:12px;background:#222;border:1px solid #666;color:#eee;border-radius:6px;font-size:16px;margin-bottom:12px;font-family:inherit">
+  <button class="menu-btn" onclick="confirmName()">Confirm Name</button>
+  <button class="btn" onclick="showScreen('title-screen')">← Back</button>
 </div>
 
 <div id="mode-screen" class="screen">
-  <h2 class="text-center mb-6">選擇模式</h2>
-  <button class="menu-btn" onclick="selectMode('normal')">正常模式（300日）</button>
-  <button class="menu-btn" onclick="selectMode('endless')">無盡模式</button>
-  <button class="btn" onclick="showScreen('name-screen')">← 返回</button>
+  <h2 class="text-center mb-6">Select Mode</h2>
+  <button class="menu-btn" onclick="selectMode('normal')">Normal Mode (300 Days)</button>
+  <button class="menu-btn" onclick="selectMode('endless')">Endless Mode</button>
+  <button class="btn" onclick="showScreen('name-screen')">← Back</button>
 </div>
 <div id="diff-screen" class="screen">
-  <h2 class="text-center mb-6">選擇難度</h2>
-  <button class="menu-btn" onclick="selectDiff('easy')">簡單</button>
-  <button class="menu-btn" onclick="selectDiff('normal')">一般</button>
-  <button class="menu-btn" onclick="selectDiff('hard')">困難</button>
-  <button class="btn" onclick="showScreen('mode-screen')">← 返回</button>
+  <h2 class="text-center mb-6">Select Difficulty</h2>
+  <button class="menu-btn" onclick="selectDiff('easy')">Easy</button>
+  <button class="menu-btn" onclick="selectDiff('normal')">Normal</button>
+  <button class="menu-btn" onclick="selectDiff('hard')">Hard</button>
+  <button class="btn" onclick="showScreen('mode-screen')">← Back</button>
 </div>
 <div id="job-screen" class="screen">
-  <h2 class="text-center mb-6">選擇職業</h2>
-  <button class="menu-btn" onclick="selectJob('warrior')">戰士</button>
-  <button class="menu-btn" onclick="selectJob('mage')">法師</button>
-  <button class="menu-btn" onclick="selectJob('ranger')">遊俠</button>
-  <button class="menu-btn" onclick="selectJob('assassin')">刺客</button>
-  <button class="btn" onclick="showScreen('diff-screen')">← 返回</button>
+  <h2 class="text-center mb-6">Select Class</h2>
+  <button class="menu-btn" onclick="selectJob('warrior')">Warrior</button>
+  <button class="menu-btn" onclick="selectJob('mage')">Mage</button>
+  <button class="menu-btn" onclick="selectJob('ranger')">Ranger</button>
+  <button class="menu-btn" onclick="selectJob('assassin')">Assassin</button>
+  <button class="btn" onclick="showScreen('diff-screen')">← Back</button>
 </div>
 <div id="skill-pick-screen" class="screen">
-  <h2 class="text-center mb-6">選擇初始技能</h2>
+  <h2 class="text-center mb-6">Select Starting Skill</h2>
   <div id="skill-pick-content"></div>
 </div>
 
@@ -98,11 +97,11 @@ button:active{background:#444}button:disabled{opacity:.45}
     <div class="stat-item">🧪 MP <span id="mp">30</span>/<span id="maxMp">30</span></div>
     <div class="stat-item">🎯 AP <span id="ap">10</span>/<span id="maxAp">10</span></div>
     <div class="stat-item stat-full">✨ EXP <span id="exp">0</span>/<span id="maxExp">50</span> | 🏅 <span id="rank">F</span></div>
-    <div class="stat-item stat-full"><span id="fame-label">名氣</span> <span id="fame">0</span>（<span id="fameTitle">新手冒險者</span>）</div>
-    <div class="stat-item stat-full">👤 <span id="playerName">冒險者</span> | <span id="season">春</span> | <span id="weather-label">天氣</span> <span id="weather">晴天</span></div>
+    <div class="stat-item stat-full"><span id="fame-label">Fame</span> <span id="fame">0</span>（<span id="fameTitle">Novice Adventurer</span>）</div>
+    <div class="stat-item stat-full">👤 <span id="playerName">Adventurer</span> | <span id="season">Spring</span> | <span id="weather-label">Weather</span> <span id="weather">Sunny</span></div>
   </div>
   <div class="map-grid" id="map"></div>
-  <div class="dialogue-box" id="dialogue">你站在冒險者村莊的入口。</div>
+  <div class="dialogue-box" id="dialogue">You stand at the entrance of the adventurer village.</div>
   <div class="log-box" id="event-log"></div>
   <div class="controls">
     <button class="ctrl-btn" onclick="forceNextDay()">⏭</button>
@@ -116,16 +115,16 @@ button:active{background:#444}button:disabled{opacity:.45}
   </div>
   <div id="options"></div>
   <div class="flex mt-6">
-    <button class="btn flex-1" onclick="showScreen('pet-screen')">🐾 寵物</button>
-    <button class="btn flex-1" onclick="showScreen('bag-screen')">🎒 背包</button>
-    <button class="btn flex-1" onclick="openMenu()">☰ 選單</button>
+    <button class="btn flex-1" onclick="showScreen('pet-screen')">🐾 Pets</button>
+    <button class="btn flex-1" onclick="showScreen('bag-screen')">🎒 Bag</button>
+    <button class="btn flex-1" onclick="openMenu()">☰ Menu</button>
   </div>
 </div>
 
 <div id="battle-screen" class="screen">
   <div class="stats-panel">
-    <div class="stat-item"><span id="b-you-label">你</span> ❤️ <span id="b-hp">100</span> | MP <span id="b-mp">30</span> | <span id="b-spd-label">速</span> <span id="b-spd">10</span></div>
-    <div class="stat-item"><span id="e-label">敵</span> ❤️ <span id="e-hp">50</span> | <span id="e-spd-label">速</span> <span id="e-spd">8</span></div>
+    <div class="stat-item"><span id="b-you-label">You</span> ❤️ <span id="b-hp">100</span> | MP <span id="b-mp">30</span> | <span id="b-spd-label">SPD</span> <span id="b-spd">10</span></div>
+    <div class="stat-item"><span id="e-label">Enemy</span> ❤️ <span id="e-hp">50</span> | <span id="e-spd-label">SPD</span> <span id="e-spd">8</span></div>
   </div>
   <div id="pet-battle-info" class="small" style="margin-bottom:4px"></div>
   <div class="hp-bar"><div class="hp-fill" id="b-bar" style="width:100%"></div></div>
@@ -134,24 +133,24 @@ button:active{background:#444}button:disabled{opacity:.45}
   <div class="battle-actions" id="battle-actions"></div>
 </div>
 
-<div id="quest-screen" class="screen"><h2 class="text-center mb-6">📋 任務</h2><div id="quest-content"></div><button class="btn mt-6" onclick="showScreen('game-screen')">← 返回</button></div>
-<div id="bag-screen" class="screen"><h2 class="text-center mb-6">🎒 背包</h2><div class="tab-bar" id="bag-tabs"></div><div id="bag-content"></div><button class="btn mt-6" onclick="backFromMenu()">← 返回</button></div>
-<div id="pet-screen" class="screen"><h2 class="text-center mb-6">🐾 寵物</h2><div id="pet-content"></div><button class="btn mt-6" onclick="backFromMenu()">← 返回</button></div>
-<div id="setting-screen" class="screen"><h2 class="text-center mb-6">⚙️ 設定 / Settings</h2><button class="btn" onclick="toggleLang()">🌐 切換語言 / Toggle Language</button><button class="btn" onclick="showSaveSlots('save')">💾 手動存檔至欄位</button><button class="btn danger" onclick="resetAll()">🗑️ 重置所有存檔</button><button class="btn mt-6" onclick="backFromMenu()">← 返回</button></div>
-<div id="guild-screen" class="screen"><h2 class="text-center mb-6">🏛️ 工會</h2><div id="guild-content"></div><button class="btn mt-6" onclick="backFromMenu()">← 返回</button></div>
-<div id="shop-screen" class="screen"><h2 class="text-center mb-6">🛒 商店</h2><div id="shop-content"></div><button class="btn mt-6" onclick="backFromMenu()">← 返回</button></div>
-<div id="alchemy-screen" class="screen"><h2 class="text-center mb-6">🧪 煉藥所</h2><div id="alchemy-content"></div><button class="btn mt-6" onclick="backFromMenu()">← 返回</button></div>
-<div id="blacksmith-screen" class="screen"><h2 class="text-center mb-6">⚒️ 鐵匠舖</h2><div id="blacksmith-content"></div><button class="btn mt-6" onclick="backFromMenu()">← 返回</button></div>
-<div id="skill-screen" class="screen"><h2 class="text-center mb-6">✨ 技能強化</h2><div id="skill-content"></div><button class="btn mt-6" onclick="backFromMenu()">← 返回</button></div>
-<div id="ruins-screen" class="screen"><h2 class="text-center mb-6">🕳️ 遺跡</h2><div id="ruins-content"></div><button class="btn mt-6" onclick="backFromMenu()">← 返回</button></div>
+<div id="quest-screen" class="screen"><h2 class="text-center mb-6">📋 Quests</h2><div id="quest-content"></div><button class="btn mt-6" onclick="showScreen('game-screen')">← Back</button></div>
+<div id="bag-screen" class="screen"><h2 class="text-center mb-6">🎒 Bag</h2><div class="tab-bar" id="bag-tabs"></div><div id="bag-content"></div><button class="btn mt-6" onclick="backFromMenu()">← Back</button></div>
+<div id="pet-screen" class="screen"><h2 class="text-center mb-6">🐾 Pets</h2><div id="pet-content"></div><button class="btn mt-6" onclick="backFromMenu()">← Back</button></div>
+<div id="setting-screen" class="screen"><h2 class="text-center mb-6">⚙️ Settings</h2><button class="btn" onclick="toggleLang()">🌐 Toggle Language</button><button class="btn" onclick="showSaveSlots('save')">💾 Manual Save to Slot</button><button class="btn danger" onclick="resetAll()">🗑️ Reset All Saves</button><button class="btn mt-6" onclick="backFromMenu()">← Back</button></div>
+<div id="guild-screen" class="screen"><h2 class="text-center mb-6">🏛️ Guild</h2><div id="guild-content"></div><button class="btn mt-6" onclick="backFromMenu()">← Back</button></div>
+<div id="shop-screen" class="screen"><h2 class="text-center mb-6">🛒 Shop</h2><div id="shop-content"></div><button class="btn mt-6" onclick="backFromMenu()">← Back</button></div>
+<div id="alchemy-screen" class="screen"><h2 class="text-center mb-6">🧪 Alchemy</h2><div id="alchemy-content"></div><button class="btn mt-6" onclick="backFromMenu()">← Back</button></div>
+<div id="blacksmith-screen" class="screen"><h2 class="text-center mb-6">⚒️ Blacksmith</h2><div id="blacksmith-content"></div><button class="btn mt-6" onclick="backFromMenu()">← Back</button></div>
+<div id="skill-screen" class="screen"><h2 class="text-center mb-6">✨ Skill Enhance</h2><div id="skill-content"></div><button class="btn mt-6" onclick="backFromMenu()">← Back</button></div>
+<div id="ruins-screen" class="screen"><h2 class="text-center mb-6">🕳️ Ruins</h2><div id="ruins-content"></div><button class="btn mt-6" onclick="backFromMenu()">← Back</button></div>
 
 <div id="ingame-menu" class="screen">
-  <h2 class="text-center mb-6">選單</h2>
-  <button class="menu-btn" onclick="saveGame();alert(t('已存檔至目前欄位','Saved to current slot'));showScreen('game-screen')">💾 保存 / Save</button>
-  <button class="menu-btn" onclick="showSaveSlots('save')">💾 存至其他欄位</button>
-  <button class="menu-btn" onclick="showScreen('setting-screen')">⚙️ 設定</button>
-  <button class="menu-btn" onclick="showScreen('game-screen')">← 返回遊戲</button>
-  <button class="btn danger mt-6" onclick="if(confirm(t('返回主界面？','Return to title?')))showScreen('title-screen')">🏠 返回主界面</button>
+  <h2 class="text-center mb-6">Menu</h2>
+  <button class="menu-btn" onclick="saveGame();alert(t('已存檔至目前欄位','Saved to current slot'));showScreen('game-screen')">💾 Save</button>
+  <button class="menu-btn" onclick="showSaveSlots('save')">💾 Save to Other Slot</button>
+  <button class="menu-btn" onclick="showScreen('setting-screen')">⚙️ Settings</button>
+  <button class="menu-btn" onclick="showScreen('game-screen')">← Back to Game</button>
+  <button class="btn danger mt-6" onclick="if(confirm(t('返回主界面？','Return to title?')))showScreen('title-screen')">🏠 Title Screen</button>
 </div>
 
 <script>
@@ -230,7 +229,7 @@ function confirmSkill(idx){
   showScreen("game-screen");
 }
 let currentSlot=1;
-let LANG=localStorage.getItem("pixel_rpg_lang")||"zh";
+let LANG=localStorage.getItem("pixel_rpg_lang")||"en";
 function t(zh,en){return LANG==="zh"?zh:en;}
 
 /* ===== Full Name / Term Maps (save keys stay Chinese) ===== */
@@ -527,7 +526,7 @@ function renderMap(){
   if(G.weather==="雨天")grass="🌧️";
   else if(G.weather==="陰天")grass="☁️";
   else if(G.weather==="大霧"||G.weather==="打雷")grass="⛈️";
-  let h="";for(let y=0;y<5;y++)for(let x=0;x<5;x++){const k=`${x},${y}`,isP=x===G.x&&y===G.y;let icon=isP?"🧙‍♂️":grass;const t=getTile(k);if(t)icon=t.icon;const ev=G.mapEvents[k];if(!isP&&ev){if(ev.type==="res")icon=ev.icon;else if(ev.type==="mon")icon=ev.icon;else if(ev.type==="npc")icon=ev.icon;}h+=`<div class="map-cell ${isP?"player-here":""}">${icon}</div>`;}
+  let h="";for(let y=0;y<5;y++)for(let x=0;x<5;x++){const k=`${x},${y}`,isP=x===G.x&&y===G.y;let icon=isP?"🧙‍♂️":grass;const tile=getTile(k);if(tile)icon=tile.icon;const ev=G.mapEvents[k];if(!isP&&ev){if(ev.type==="res")icon=ev.icon;else if(ev.type==="mon")icon=ev.icon;else if(ev.type==="npc")icon=ev.icon;}h+=`<div class="map-cell ${isP?"player-here":""}">${icon}</div>`;}
   document.getElementById("map").innerHTML=h;
 }
 function refreshDaily(){
@@ -541,7 +540,7 @@ function refreshDaily(){
   addLog(t("今日季節：","Season: ")+tn(G.season)+" | "+t("天氣：","Weather: ")+tn(G.weather));
   // 資源
   const keys=["0,0","4,0","0,4","1,1","3,3","1,3"];
-  keys.forEach(k=>{if(Math.random()<0.65){const types=[{res:"ore",icon:"⛏️"},{res:"herb",icon:"🌿"},{res:"wood",icon:"🪵"}];const t=types[Math.floor(Math.random()*3)];G.mapEvents[k]={type:"res",...t,rarity:Math.random()<0.65?0:(Math.random()<0.7?1:2)};}});
+  keys.forEach(k=>{if(Math.random()<0.65){const types=[{res:"ore",icon:"⛏️"},{res:"herb",icon:"🌿"},{res:"wood",icon:"🪵"}];const rt=types[Math.floor(Math.random()*3)];G.mapEvents[k]={type:"res",...rt,rarity:Math.random()<0.65?0:(Math.random()<0.7?1:2)};}});
   if(Math.random()<0.4){const mon=MONSTERS[Math.floor(Math.random()*MONSTERS.length)];const pos=`${Math.floor(Math.random()*5)},${Math.floor(Math.random()*5)}`;if(pos!=="2,2")G.mapEvents[pos]={type:"mon",name:mon.name,icon:mon.icon,hp:mon.hp,atk:mon.atk,spd:mon.spd,rarity:mon.r};}
   // 每日NPC 0-3個
   const npcTypes=[
@@ -572,14 +571,14 @@ function nextDay(){G.day++;if(G.mode==="normal"&&G.day>300){dialogue(t("300日�
   addLog(t("第 ","Day ")+G.day+t(" 日開始"," begins"));dialogue(t("第 ","Day ")+G.day+t(" 日",""));renderMap();updateUI();saveGame();}
 
 function checkTile(){
-  const k=`${G.x},${G.y}`,t=getTile(k),ev=G.mapEvents[k],opt=document.getElementById("options");opt.innerHTML="";
+  const k=`${G.x},${G.y}`,tile=getTile(k),ev=G.mapEvents[k],opt=document.getElementById("options");opt.innerHTML="";
   if(ev){
     if(ev.type==="res"){dialogue(`${ev.icon} ${tn(ev.res)}（${rarityName(ev.rarity)}）`);opt.innerHTML=`<button class="btn" onclick="gather('${k}')">${t("採集","Gather")}</button>`;return;}
     if(ev.type==="mon"){dialogue(`${ev.icon} ${tn(ev.name)}`);opt.innerHTML=`<button class="btn" onclick="startBattle('${k}')">${t("戰鬥","Battle")}</button>`;return;}
     if(ev.type==="npc"){dialogue(`${ev.icon} ${tn(ev.name)}`);opt.innerHTML=`<button class="btn" onclick="interactNpc('${k}')">${t("互動","Interact")}</button>`;return;}
   }
-  if(!t){dialogue(t("平坦草地","Flat grassland"));return;}
-  if(t.type==="village"){
+  if(!tile){dialogue(t("平坦草地","Flat grassland"));return;}
+  if(tile.type==="village"){
     dialogue(t("回到村莊","Back at the village"));
     let btns=`<button class="btn" onclick="rest()">${t("旅店休息","Inn Rest")}</button><button class="btn" onclick="showScreen('shop-screen')">🛒 ${t("商店","Shop")}</button>`;
     if(G.level>=3||G.day>=3)btns+=`<button class="btn" onclick="showScreen('guild-screen')">🏛️ ${t("工會","Guild")}</button>`;
@@ -589,16 +588,16 @@ function checkTile(){
     if(G.level>=4||G.day>=4)btns+=`<button class="btn" onclick="showCodex()">📖 ${t("圖鑑","Codex")}</button>`;
     opt.innerHTML=btns;
   }
-  else if(t.type==="forest"){dialogue(t("迷霧森林","Misty Forest"));opt.innerHTML=`<button class="btn" onclick="startForestBattle()">${t("進入戰鬥","Enter Battle")}</button>`;}
-  else if(t.type==="boss"){
+  else if(tile.type==="forest"){dialogue(t("迷霧森林","Misty Forest"));opt.innerHTML=`<button class="btn" onclick="startForestBattle()">${t("進入戰鬥","Enter Battle")}</button>`;}
+  else if(tile.type==="boss"){
     if(G.day < G.bossRespawnDay){dialogue(t("魔王尚未復活（還需 ","Demon Lord not yet revived (need ")+(G.bossRespawnDay-G.day)+t(" 日）"," days)"));}
     else{dialogue(t("魔王窟入口","Demon Lord's Lair"));opt.innerHTML=`<button class="btn" onclick="startBossBattle()">${t("挑戰魔王","Challenge Demon Lord")}</button>`;}
   }
-  else if(t.type==="mine"||t.type==="herb"||t.type==="wood"){opt.innerHTML=`<button class="btn" onclick="gatherFixed('${t.type}')">${t("採集","Gather")}</button>`;}
-  else if(t.type==="ruins"){showScreen("ruins-screen");}
-  else if(t.type==="fish"){dialogue(t("釣魚點","Fishing Spot"));opt.innerHTML=`<button class="btn" onclick="doFish()">${t("釣魚","Fish")} (1AP)</button>`;}
+  else if(tile.type==="mine"||tile.type==="herb"||tile.type==="wood"){opt.innerHTML=`<button class="btn" onclick="gatherFixed('${tile.type}')">${t("採集","Gather")}</button>`;}
+  else if(tile.type==="ruins"){showScreen("ruins-screen");}
+  else if(tile.type==="fish"){dialogue(t("釣魚點","Fishing Spot"));opt.innerHTML=`<button class="btn" onclick="doFish()">${t("釣魚","Fish")} (1AP)</button>`;}
 }
-function dialogue(t){document.getElementById("dialogue").textContent=t;}
+function dialogue(msg){document.getElementById("dialogue").textContent=msg;}
 
 function gather(k){if(G.stamina<1||G.ap<1)return;G.stamina--;G.ap--;const ev=G.mapEvents[k];if(!G.inv[ev.res])G.inv[ev.res]={};const rar=Math.random()<0.55?0:(Math.random()<0.65?1:(Math.random()<0.65?2:(Math.random()<0.55?3:4)));G.inv[ev.res][rar]=(G.inv[ev.res][rar]||0)+1;addLog(t("採集到 ","Gathered ")+tn(ev.res)+"（"+rarityName(rar)+"）");const gexp=6+Math.floor(Math.random()*5);G.exp+=gexp;addLog(t("採集獲得 EXP+","Gather EXP+")+gexp);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.4);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(t("等級","Lv")+G.level+t("！AP上限+1","! AP max +1"));}addLog(t("升級！Lv.","Level up! Lv.")+G.level);}if(ev.res==="ore"&&Math.random()<0.08){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog(t("採礦幸運獲得強化石！","Lucky mining: Enhance Stone!"));}updateQuestProgress("Gather",1);delete G.mapEvents[k];updateUI();saveGame();checkTile();}
 function gatherFixed(type){if(G.stamina<1||G.ap<1)return;G.stamina--;G.ap--;const map={mine:"ore",herb:"herb",wood:"wood"};const res=map[type];const rar=Math.random()<0.55?0:(Math.random()<0.65?1:(Math.random()<0.65?2:(Math.random()<0.55?3:4)));if(!G.inv[res])G.inv[res]={};G.inv[res][rar]=(G.inv[res][rar]||0)+1;addLog(t("採集到 ","Gathered ")+tn(res)+"（"+rarityName(rar)+"）");const gexp=6+Math.floor(Math.random()*5);G.exp+=gexp;addLog(t("採集獲得 EXP+","Gather EXP+")+gexp);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.4);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(t("等級","Lv")+G.level+t("！AP上限+1","! AP max +1"));}addLog(t("升級！Lv.","Level up! Lv.")+G.level);}if(type==="mine"&&Math.random()<0.08){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog(t("採礦幸運獲得強化石！","Lucky mining: Enhance Stone!"));}updateQuestProgress("Gather",1);updateUI();saveGame();}
@@ -813,11 +812,11 @@ function generateAvailableQuests(){
   availableQuests=[];
   const types=[["Hunt","討伐怪物",3],["Gather","採集資源",4]];
   for(let i=0;i<4;i++){
-    const t=types[Math.floor(Math.random()*types.length)];
+    const qt=types[Math.floor(Math.random()*types.length)];
     const diff=Math.random()<0.5?0:(Math.random()<0.6?1:2); // 0普通 1困難 2極難
-    const need=t[2]+diff+Math.floor(Math.random()*2);
+    const need=qt[2]+diff+Math.floor(Math.random()*2);
     const reward=35+diff*25+Math.floor(Math.random()*40);
-    availableQuests.push({type:t[0],desc:t[1],need,progress:0,reward,fame:4+diff*2,diff});
+    availableQuests.push({type:qt[0],desc:qt[1],need,progress:0,reward,fame:4+diff*2,diff});
   }
 }
 function renderGuild(){
