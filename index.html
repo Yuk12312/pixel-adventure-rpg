@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Pixel Adventure RPG v28</title>
+<title>Pixel Adventure RPG v29</title>
 <style>
 :root{--bg:#0f0f0f;--panel:#1a1a1a;--border:#444;--accent:#00e6b8;--gold:#ffcc00;--danger:#ff5555;--text:#eee}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -46,7 +46,7 @@ button:active{background:#444}button:disabled{opacity:.45}
 
 <div id="title-screen" class="screen active">
   <h1>🧙 像素冒險 RPG</h1>
-  <div class="subtitle">v28 · 採集無限 + 傳說掉落 + 強化無上限 + AP成長</div>
+  <div class="subtitle">v29 · 新手引導 + 分階段解鎖 + 更好反饋</div>
   <button class="menu-btn" onclick="startNewGame()">▶ 開始遊戲 / New Game</button>
   <button class="menu-btn" onclick="showSaveSlots('load')">📂 讀取存檔 / Load</button>
   <button class="menu-btn" onclick="showScreen('setting-screen')">⚙️ 設定 / Settings</button>
@@ -351,6 +351,10 @@ function nextDay(){G.day++;if(G.mode==="normal"&&G.day>300){dialogue("300日已�
   // 隨機小劇情
   const stories=["你夢到遠方有一座發光的塔。","村民傳說來了一位神秘旅人。","今天風特別大，感覺有大事發生。","你感覺體內力量又增強了一點。","森林深處傳來奇怪的聲音。","天空出現罕見的雙彩虹。"];
   if(Math.random()<0.35){const s=stories[Math.floor(Math.random()*stories.length)];addLog(`📜 ${s}`);}
+  if(G.day===1){addLog("💡 新手提示：先去周圍採集同探索，等級提升後村莊會解鎖更多功能！");}
+  if(G.day===3){addLog("💡 工會已解鎖，可以接任務賺金幣同名氣！");}
+  if(G.day===5){addLog("💡 煉藥所已解鎖！");}
+  if(G.day===7){addLog("💡 鐵匠舖已解鎖，可以合成同強化裝備！");}
   addLog(`第 ${G.day} 日開始`);dialogue(`第 ${G.day} 日`);renderMap();updateUI();saveGame();}
 
 function checkTile(){
@@ -361,7 +365,16 @@ function checkTile(){
     if(ev.type==="npc"){dialogue(`${ev.icon} ${ev.name}`);opt.innerHTML=`<button class="btn" onclick="interactNpc('${k}')">互動</button>`;return;}
   }
   if(!t){dialogue("平坦草地");return;}
-  if(t.type==="village"){dialogue("回到村莊");opt.innerHTML=`<button class="btn" onclick="rest()">旅店休息</button><button class="btn" onclick="showScreen('shop-screen')">🛒 商店</button><button class="btn" onclick="showScreen('guild-screen')">🏛️ 工會</button><button class="btn" onclick="showScreen('alchemy-screen')">🧪 煉藥所</button><button class="btn" onclick="showScreen('blacksmith-screen')">⚒️ 鐵匠舖</button><button class="btn" onclick="showScreen('skill-screen')">✨ 技能強化</button><button class="btn" onclick="showCodex()">📖 圖鑑</button>`;}
+  if(t.type==="village"){
+    dialogue("回到村莊");
+    let btns=`<button class="btn" onclick="rest()">旅店休息</button><button class="btn" onclick="showScreen('shop-screen')">🛒 商店</button>`;
+    if(G.level>=3||G.day>=3)btns+=`<button class="btn" onclick="showScreen('guild-screen')">🏛️ 工會</button>`;
+    if(G.level>=5||G.day>=5)btns+=`<button class="btn" onclick="showScreen('alchemy-screen')">🧪 煉藥所</button>`;
+    if(G.level>=7||G.day>=7)btns+=`<button class="btn" onclick="showScreen('blacksmith-screen')">⚒️ 鐵匠舖</button>`;
+    if(G.level>=10||G.day>=10)btns+=`<button class="btn" onclick="showScreen('skill-screen')">✨ 技能強化</button>`;
+    if(G.level>=4||G.day>=4)btns+=`<button class="btn" onclick="showCodex()">📖 圖鑑</button>`;
+    opt.innerHTML=btns;
+  }
   else if(t.type==="forest"){dialogue("迷霧森林");opt.innerHTML=`<button class="btn" onclick="startForestBattle()">進入戰鬥</button>`;}
   else if(t.type==="boss"){
     if(G.day < G.bossRespawnDay){dialogue(`魔王尚未復活（還需 ${G.bossRespawnDay-G.day} 日）`);}
