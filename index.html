@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Pixel Adventure RPG v24</title>
+<title>Pixel Adventure RPG v25</title>
 <style>
 :root{--bg:#0f0f0f;--panel:#1a1a1a;--border:#444;--accent:#00e6b8;--gold:#ffcc00;--danger:#ff5555;--text:#eee}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -46,7 +46,7 @@ button:active{background:#444}button:disabled{opacity:.45}
 
 <div id="title-screen" class="screen active">
   <h1>🧙 像素冒險 RPG</h1>
-  <div class="subtitle">v24 · 釣魚 + 圖鑑 + 成就 + 四季 + NPC事件</div>
+  <div class="subtitle">v25 · 魚入背包 + 賣魚 + 四季草地 + 深度提升</div>
   <button class="menu-btn" onclick="startNewGame()">▶ 開始遊戲 / New Game</button>
   <button class="menu-btn" onclick="showSaveSlots('load')">📂 讀取存檔 / Load</button>
   <button class="menu-btn" onclick="showScreen('setting-screen')">⚙️ 設定 / Settings</button>
@@ -306,7 +306,8 @@ function totalSpd(){let s=G.spd+(G.activePet?.spd||0);["head","body","pants","sh
 
 function getTile(k){const f={"2,2":{icon:"🏘️",type:"village"},"2,1":{icon:"🌲",type:"forest"},"3,2":{icon:"💀",type:"boss"},"0,0":{icon:"⛏️",type:"mine"},"4,0":{icon:"🌿",type:"herb"},"0,4":{icon:"🪵",type:"wood"},"4,4":{icon:"🕳️",type:"ruins"},"1,2":{icon:"🎣",type:"fish"},"3,1":{icon:"🎣",type:"fish"}};return f[k];}
 function renderMap(){
-  let h="";for(let y=0;y<5;y++)for(let x=0;x<5;x++){const k=`${x},${y}`,isP=x===G.x&&y===G.y;let icon=isP?"🧙‍♂️":"🟩";const t=getTile(k);if(t)icon=t.icon;const ev=G.mapEvents[k];if(!isP&&ev){if(ev.type==="res")icon=ev.icon;else if(ev.type==="mon")icon=ev.icon;else if(ev.type==="npc")icon=ev.icon;}h+=`<div class="map-cell ${isP?"player-here":""}">${icon}</div>`;}
+  let grass="🟩";if(G.season==="夏")grass="🌿";else if(G.season==="秋")grass="🍂";else if(G.season==="冬")grass="❄️";if(G.weather==="雨天")grass="💧";
+  let h="";for(let y=0;y<5;y++)for(let x=0;x<5;x++){const k=`${x},${y}`,isP=x===G.x&&y===G.y;let icon=isP?"🧙‍♂️":grass;const t=getTile(k);if(t)icon=t.icon;const ev=G.mapEvents[k];if(!isP&&ev){if(ev.type==="res")icon=ev.icon;else if(ev.type==="mon")icon=ev.icon;else if(ev.type==="npc")icon=ev.icon;}h+=`<div class="map-cell ${isP?"player-here":""}">${icon}</div>`;}
   document.getElementById("map").innerHTML=h;
 }
 function refreshDaily(){
@@ -661,6 +662,7 @@ function renderShop(){
         h+=`<div class="list-item"><span>${id} ×${n}　可賣 ${sellP}G/個</span><button class="btn small" onclick="sellItem('${id}',${sellP})">賣出1個</button></div>`;
       }
     });
+    if(G.fishInv){for(let fn in G.fishInv){const n=G.fishInv[fn];if(n>0){const sellP=fn==="傳說魚"?150:fn==="金魚"?60:fn==="鱸魚"?30:fn==="鯉魚"?15:8;h+=`<div class="list-item"><span>🐟 ${fn} ×${n}　可賣 ${sellP}G/個</span><button class="btn small" onclick="sellFish('${fn}',${sellP})">賣出1個</button></div>`;}}}
     if(!h.includes("可賣"))h+=`<div class="small">暫無可賣物品</div>`;
   }else{
     h+=`<div class="small">請先選擇「購買」或「賣出」</div>`;
@@ -669,6 +671,7 @@ function renderShop(){
 }
 function buy(id,p){if(G.gold<p){alert("金幣不足");return;}G.gold-=p;G.inv[id]=(G.inv[id]||0)+1;addLog(`購買了 ${id}`);updateUI();saveGame();renderShop();}
 function sellItem(id,p){if((G.inv[id]||0)<=0)return;G.inv[id]--;G.gold+=p;addLog(`賣出 ${id} +${p}G`);updateUI();saveGame();renderShop();}
+function sellFish(fn,p){if(!G.fishInv||(G.fishInv[fn]||0)<=0)return;G.fishInv[fn]--;G.gold+=p;addLog(`賣出 ${fn} +${p}G`);updateUI();saveGame();renderShop();}
 
 function renderAlchemy(){
   const herb0=G.inv.herb[0]||0, herb1=G.inv.herb[1]||0;
@@ -747,7 +750,10 @@ function renderBag(){
   const tabs=[{id:"cons",n:"消耗品"},{id:"equip",n:"裝備"},{id:"mat",n:"材料"}];
   document.getElementById("bag-tabs").innerHTML=tabs.map(t=>`<div class="tab ${bagTab===t.id?"active":""}" onclick="bagTab='${t.id}';renderBag()">${t.n}</div>`).join("");
   let h="";
-  if(bagTab==="cons"){["potion","mpPotion","food","capture","revive","atkPotion","defPotion","townScroll"].forEach(k=>{const n=G.inv[k]||0;if(n>0)h+=`<div class="list-item"><span>${k} ×${n}</span><button class="btn small" onclick="useBag('${k}')">使用</button></div>`;});}
+  if(bagTab==="cons"){
+    ["potion","mpPotion","food","capture","revive","atkPotion","defPotion","townScroll"].forEach(k=>{const n=G.inv[k]||0;if(n>0)h+=`<div class="list-item"><span>${k} ×${n}</span><button class="btn small" onclick="useBag('${k}')">使用</button></div>`;});
+    if(G.fishInv){for(let fn in G.fishInv){if(G.fishInv[fn]>0)h+=`<div class="list-item"><span>🐟 ${fn} ×${G.fishInv[fn]}</span></div>`;}}
+  }
   else if(bagTab==="equip"){
     const slotNames={head:"頭盔",body:"鎧甲",pants:"護腿",shoes:"鞋子",weapon:"武器",necklace:"項鏈",ring:"戒指"};
     h+=`<div class="small mb-6">總ATK ${totalAtk()} | 總DEF ${totalDef()} | 總SPD ${totalSpd()} | 強化石 ${G.inv.skillStone||0}</div>`;
