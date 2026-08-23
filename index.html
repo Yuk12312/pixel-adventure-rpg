@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Pixel Adventure RPG v18</title>
+<title>Pixel Adventure RPG v19</title>
 <style>
 :root{--bg:#0f0f0f;--panel:#1a1a1a;--border:#444;--accent:#00e6b8;--gold:#ffcc00;--danger:#ff5555;--text:#eee}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -46,7 +46,7 @@ button:active{background:#444}button:disabled{opacity:.45}
 
 <div id="title-screen" class="screen active">
   <h1>🧙 像素冒險 RPG</h1>
-  <div class="subtitle">v18 · 鐵匠分類 + 稀有度顏色 + 背包合成 + 捕捉調整</div>
+  <div class="subtitle">v19 · 商店分掣 + 材料合成 + UI調整</div>
   <button class="menu-btn" onclick="startNewGame()">▶ 開始遊戲</button>
   <button class="menu-btn" onclick="continueGame()">📂 繼續遊戲</button>
   <button class="menu-btn" onclick="showScreen('setting-screen')">⚙️ 設定</button>
@@ -287,7 +287,7 @@ function checkTile(){
   const k=`${G.x},${G.y}`,t=getTile(k),ev=G.mapEvents[k],opt=document.getElementById("options");opt.innerHTML="";
   if(ev){if(ev.type==="res"){dialogue(`${ev.icon} ${ev.res}（${RARITY[ev.rarity]}）`);opt.innerHTML=`<button class="btn" onclick="gather('${k}')">採集</button>`;return;}if(ev.type==="mon"){dialogue(`${ev.icon} ${ev.name}`);opt.innerHTML=`<button class="btn" onclick="startBattle('${k}')">戰鬥</button>`;return;}}
   if(!t){dialogue("平坦草地");return;}
-  if(t.type==="village"){dialogue("回到村莊");opt.innerHTML=`<button class="btn" onclick="rest()">旅店休息</button><button class="btn" onclick="showScreen('shop-screen')">🛒 商店</button><button class="btn" onclick="showScreen('guild-screen')">🏛️ 工會</button><button class="btn" onclick="showScreen('alchemy-screen')">🧪 煉藥所</button><button class="btn" onclick="showScreen('blacksmith-screen')">⚒️ 鐵匠舖</button><button class="btn" onclick="showScreen('skill-screen')">✨ 技能強化</button><button class="btn" onclick="showRarityUpgrade()">⬆️ 稀有度合成</button>`;}
+  if(t.type==="village"){dialogue("回到村莊");opt.innerHTML=`<button class="btn" onclick="rest()">旅店休息</button><button class="btn" onclick="showScreen('shop-screen')">🛒 商店</button><button class="btn" onclick="showScreen('guild-screen')">🏛️ 工會</button><button class="btn" onclick="showScreen('alchemy-screen')">🧪 煉藥所</button><button class="btn" onclick="showScreen('blacksmith-screen')">⚒️ 鐵匠舖</button><button class="btn" onclick="showScreen('skill-screen')">✨ 技能強化</button>`;}
   else if(t.type==="forest"){dialogue("迷霧森林");opt.innerHTML=`<button class="btn" onclick="startForestBattle()">進入戰鬥</button>`;}
   else if(t.type==="boss"){
     if(G.day < G.bossRespawnDay){dialogue(`魔王尚未復活（還需 ${G.bossRespawnDay-G.day} 日）`);}
@@ -569,21 +569,30 @@ function submitQ(i){
 }
 function abandonQ(i){if(confirm("放棄任務？")){G.commissions.splice(i,1);saveGame();renderQuests();}}
 
+let shopMode=null;
 function renderShop(){
-  let h=`<div class="small mb-6">金幣：${G.gold}</div><div class="small">=== 購買 ===</div>`;
-  const items=[{id:"potion",n:"回血藥",p:25},{id:"mpPotion",n:"回MP藥",p:30},{id:"food",n:"食物",p:20},{id:"capture",n:"捕捉球",p:40},{id:"revive",n:"復活藥",p:80},{id:"townScroll",n:"回城卷",p:50},{id:"skillStone",n:"強化石",p:60}];
-  items.forEach(s=>{
-    const own = (G.inv[s.id]||0);
-    h+=`<div class="list-item"><span>${s.n} - ${s.p}G（擁有 ${own}）</span><button class="btn small" onclick="buy('${s.id}',${s.p})">購買</button></div>`;
-  });
-  h+=`<div class="small mt-6">=== 賣出自己物品 ===</div>`;
-  ["potion","mpPotion","food","capture","revive","atkPotion","defPotion","townScroll"].forEach(id=>{
-    const n=G.inv[id]||0;
-    if(n>0){
-      const sellP=Math.floor((id==="revive"?40:id==="capture"?20:15));
-      h+=`<div class="list-item"><span>${id} ×${n} 可賣 ${sellP}G/個</span><button class="btn small" onclick="sellItem('${id}',${sellP})">賣出1個</button></div>`;
-    }
-  });
+  let h=`<div class="small mb-6">金幣：${G.gold}</div>`;
+  h+=`<div class="flex mb-6"><button class="btn flex-1" onclick="shopMode='buy';renderShop()">🛒 購買</button><button class="btn flex-1" onclick="shopMode='sell';renderShop()">💰 賣出</button></div>`;
+  if(shopMode==="buy"){
+    h+=`<div class="small">=== 購買列表 ===</div>`;
+    const items=[{id:"potion",n:"回血藥",p:25},{id:"mpPotion",n:"回MP藥",p:30},{id:"food",n:"食物",p:20},{id:"capture",n:"捕捉球",p:40},{id:"revive",n:"復活藥",p:80},{id:"townScroll",n:"回城卷",p:50},{id:"skillStone",n:"強化石",p:60}];
+    items.forEach(s=>{
+      const own=(G.inv[s.id]||0);
+      h+=`<div class="list-item"><span>${s.n} - ${s.p}G（擁有 ${own}）</span><button class="btn small" onclick="buy('${s.id}',${s.p})">購買</button></div>`;
+    });
+  }else if(shopMode==="sell"){
+    h+=`<div class="small">=== 賣出列表 ===</div>`;
+    ["potion","mpPotion","food","capture","revive","atkPotion","defPotion","townScroll"].forEach(id=>{
+      const n=G.inv[id]||0;
+      if(n>0){
+        const sellP=id==="revive"?40:id==="capture"?20:15;
+        h+=`<div class="list-item"><span>${id} ×${n}　可賣 ${sellP}G/個</span><button class="btn small" onclick="sellItem('${id}',${sellP})">賣出1個</button></div>`;
+      }
+    });
+    if(!h.includes("可賣"))h+=`<div class="small">暫無可賣物品</div>`;
+  }else{
+    h+=`<div class="small">請先選擇「購買」或「賣出」</div>`;
+  }
   document.getElementById("shop-content").innerHTML=h;
 }
 function buy(id,p){if(G.gold<p){alert("金幣不足");return;}G.gold-=p;G.inv[id]=(G.inv[id]||0)+1;addLog(`購買了 ${id}`);updateUI();saveGame();renderShop();}
@@ -646,7 +655,7 @@ function renderRuins(){document.getElementById("ruins-content").innerHTML=`<div>
 function exploreRuins(){if(G.ap<1){alert("AP不足");return;}G.ap--;const f=G.ruinsFloor;if(f%10===0){addLog(`第 ${f} 層 Boss 戰勝利`);G.gold+=30+f;if(Math.random()<0.6){const rar=f>=50?3:f>=25?2:1;G.equip.necklace={name:RARITY[rar]+"項鏈",def:2+rar*2,rarity:rar};addLog("獲得飾品！");}G.ruinsFloor++;if(f===100){G.ruinsClears++;G.permanentAtk+=5*G.ruinsClears;G.ruinsFloor=1;addLog("通關第100層！永久攻擊提升");}}else{const r=Math.random();if(r<0.35){G.fromRuins=true;startForestBattle();return;}else if(r<0.5){G.hp=Math.max(1,G.hp-10);addLog("觸發陷阱");}else if(r<0.65){G.gold+=15;addLog("找到普通寶箱");}else addLog("無事發生");G.ruinsFloor++;}G.ruinsHighest=Math.max(G.ruinsHighest,G.ruinsFloor);updateUI();saveGame();renderRuins();}
 
 function renderBag(){
-  const tabs=[{id:"cons",n:"消耗品"},{id:"equip",n:"裝備"},{id:"mat",n:"材料"},{id:"craft",n:"合成"}];
+  const tabs=[{id:"cons",n:"消耗品"},{id:"equip",n:"裝備"},{id:"mat",n:"材料"}];
   document.getElementById("bag-tabs").innerHTML=tabs.map(t=>`<div class="tab ${bagTab===t.id?"active":""}" onclick="bagTab='${t.id}';renderBag()">${t.n}</div>`).join("");
   let h="";
   if(bagTab==="cons"){["potion","mpPotion","food","capture","revive","atkPotion","defPotion","townScroll"].forEach(k=>{const n=G.inv[k]||0;if(n>0)h+=`<div class="list-item"><span>${k} ×${n}</span><button class="btn small" onclick="useBag('${k}')">使用</button></div>`;});}
@@ -660,16 +669,19 @@ function renderBag(){
       h+=`<div class="list-item"><span>${slotNames[s]||s}: ${info}</span>${e?`<button class="btn small" onclick="enhanceEquip('${s}')">強化</button><button class="btn small danger" onclick="unequip('${s}')">卸下</button>`:""}</div>`;
     });
   }
-  else if(bagTab==="craft"){
-    h+=`<div class="small mb-6">在背包直接合成裝備（需對應稀有度礦石）</div>`;
-    const slots=[["weapon","劍"],["head","頭盔"],["body","鎧甲"],["pants","護腿"],["shoes","靴"],["necklace","項鏈"],["ring","戒指"]];
-    slots.forEach(([slot,name])=>{
-      for(let r=0;r<3;r++){ // 只顯示前3級方便
-        h+=`<button class="btn small" onclick="craftEquip('${slot}',${r})"><span class="r${r}">${RARITY[r]}${name}</span></button>`;
+  else{
+    h+=`<div class="small mb-6">材料可進行3合1稀有度升級</div>`;
+    ["ore","herb","wood"].forEach(res=>{
+      for(let i=0;i<4;i++){
+        const n=(G.inv[res]&&G.inv[res][i])||0;
+        if(n>0){
+          h+=`<div class="list-item"><span class="r${i}">${res}（${RARITY[i]}）×${n}</span>`;
+          if(n>=3)h+=`<button class="btn small" onclick="upgradeRarity('${res}',${i})">合成</button>`;
+          h+=`</div>`;
+        }
       }
     });
   }
-  else{["ore","herb","wood"].forEach(r=>{for(let i=0;i<5;i++){const n=(G.inv[r]&&G.inv[r][i])||0;if(n>0)h+=`<div class="list-item"><span class="r${i}">${r}（${RARITY[i]}）×${n}</span></div>`;}});}
   document.getElementById("bag-content").innerHTML=h||"<div class='small'>空</div>";
 }
 function useBag(id){if((G.inv[id]||0)<=0)return;G.inv[id]--;if(id==="potion")G.hp=Math.min(G.maxHp,G.hp+50);if(id==="mpPotion")G.mp=Math.min(G.maxMp,G.mp+30);if(id==="food")G.ap=Math.min(G.maxAp,G.ap+3);if(id==="townScroll"){G.x=2;G.y=2;addLog("使用回城卷");renderMap();checkTile();}updateUI();saveGame();renderBag();}
@@ -712,7 +724,7 @@ function upgradeRarity(res,r){
   if(!G.inv[res][r+1])G.inv[res][r+1]=0;
   G.inv[res][r+1]++;
   addLog(`合成成功：3個${RARITY[r]}${res} → 1個${RARITY[r+1]}${res}`);
-  updateUI();saveGame();showRarityUpgrade();
+  updateUI();saveGame();renderBag();
 }
 </script>
 </body>
