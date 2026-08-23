@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Pixel Adventure RPG v21</title>
+<title>Pixel Adventure RPG v22</title>
 <style>
 :root{--bg:#0f0f0f;--panel:#1a1a1a;--border:#444;--accent:#00e6b8;--gold:#ffcc00;--danger:#ff5555;--text:#eee}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -46,10 +47,11 @@ button:active{background:#444}button:disabled{opacity:.45}
 
 <div id="title-screen" class="screen active">
   <h1>🧙 像素冒險 RPG</h1>
-  <div class="subtitle">v21 · 修復合成 + 遺跡寶箱 + 細節優化</div>
-  <button class="menu-btn" onclick="startNewGame()">▶ 開始遊戲</button>
-  <button class="menu-btn" onclick="continueGame()">📂 繼續遊戲</button>
-  <button class="menu-btn" onclick="showScreen('setting-screen')">⚙️ 設定</button>
+  <div class="subtitle">v22 · 多存檔 + 中英切換</div>
+  <button class="menu-btn" onclick="startNewGame()">▶ 開始遊戲 / New Game</button>
+  <button class="menu-btn" onclick="showSaveSlots('load')">📂 讀取存檔 / Load</button>
+  <button class="menu-btn" onclick="showScreen('setting-screen')">⚙️ 設定 / Settings</button>
+  <div id="save-slots" style="display:none;margin-top:10px"></div>
 </div>
 
 <div id="name-screen" class="screen">
@@ -135,7 +137,7 @@ button:active{background:#444}button:disabled{opacity:.45}
 <div id="quest-screen" class="screen"><h2 class="text-center mb-6">📋 任務</h2><div id="quest-content"></div><button class="btn mt-6" onclick="showScreen('game-screen')">← 返回</button></div>
 <div id="bag-screen" class="screen"><h2 class="text-center mb-6">🎒 背包</h2><div class="tab-bar" id="bag-tabs"></div><div id="bag-content"></div><button class="btn mt-6" onclick="backFromMenu()">← 返回</button></div>
 <div id="pet-screen" class="screen"><h2 class="text-center mb-6">🐾 寵物</h2><div id="pet-content"></div><button class="btn mt-6" onclick="backFromMenu()">← 返回</button></div>
-<div id="setting-screen" class="screen"><h2 class="text-center mb-6">⚙️ 設定</h2><button class="btn danger" onclick="resetAll()">🗑️ 重置存檔</button><button class="btn mt-6" onclick="backFromMenu()">← 返回</button></div>
+<div id="setting-screen" class="screen"><h2 class="text-center mb-6">⚙️ 設定 / Settings</h2><button class="btn" onclick="toggleLang()">🌐 切換語言 / Toggle Language</button><button class="btn" onclick="showSaveSlots('save')">💾 手動存檔至欄位</button><button class="btn danger" onclick="resetAll()">🗑️ 重置所有存檔</button><button class="btn mt-6" onclick="backFromMenu()">← 返回</button></div>
 <div id="guild-screen" class="screen"><h2 class="text-center mb-6">🏛️ 工會</h2><div id="guild-content"></div><button class="btn mt-6" onclick="backFromMenu()">← 返回</button></div>
 <div id="shop-screen" class="screen"><h2 class="text-center mb-6">🛒 商店</h2><div id="shop-content"></div><button class="btn mt-6" onclick="backFromMenu()">← 返回</button></div>
 <div id="alchemy-screen" class="screen"><h2 class="text-center mb-6">🧪 煉藥所</h2><div id="alchemy-content"></div><button class="btn mt-6" onclick="backFromMenu()">← 返回</button></div>
@@ -145,7 +147,8 @@ button:active{background:#444}button:disabled{opacity:.45}
 
 <div id="ingame-menu" class="screen">
   <h2 class="text-center mb-6">選單</h2>
-  <button class="menu-btn" onclick="saveGame();alert('已存檔');showScreen('game-screen')">💾 保存</button>
+  <button class="menu-btn" onclick="saveGame();alert(t('已存檔至目前欄位','Saved to current slot'));showScreen('game-screen')">💾 保存 / Save</button>
+  <button class="menu-btn" onclick="showSaveSlots('save')">💾 存至其他欄位</button>
   <button class="menu-btn" onclick="showScreen('setting-screen')">⚙️ 設定</button>
   <button class="menu-btn" onclick="showScreen('game-screen')">← 返回遊戲</button>
   <button class="btn danger mt-6" onclick="if(confirm('返回主界面？'))showScreen('title-screen')">🏠 返回主界面</button>
@@ -225,18 +228,44 @@ function confirmSkill(idx){
   saveGame();updateUI();renderMap();checkTile();
   showScreen("game-screen");
 }
-function continueGame(){
-  const raw=localStorage.getItem("pixel_rpg_v10");
-  if(!raw){alert("沒有存檔");return;}
-  G=JSON.parse(raw);
-  eventLog=G.eventLog||[];
-  availableQuests=G.availableQuests||[];
+let currentSlot=1;
+let LANG=localStorage.getItem("pixel_rpg_lang")||"zh";
+function t(zh,en){return LANG==="zh"?zh:en;}
+function showSaveSlots(mode){
+  const el=document.getElementById("save-slots");
+  el.style.display="block";
+  let h=`<div class="small mb-6">${mode==="load"?t("選擇讀取欄位","Select Load Slot"):t("選擇存檔欄位","Select Save Slot")}</div>`;
+  for(let i=1;i<=5;i++){
+    const raw=localStorage.getItem("pixel_rpg_slot"+i);
+    let info=t("空欄位","Empty");
+    if(raw){try{const d=JSON.parse(raw);info=`${d.name||"?"} Lv.${d.level||1} Day${d.day||1}`;}catch(e){}}
+    h+=`<button class="btn" onclick="${mode==='load'?`loadSlot(${i})`:`saveToSlot(${i})`}">Slot ${i}: ${info}</button>`;
+  }
+  h+=`<button class="btn" onclick="document.getElementById('save-slots').style.display='none'">${t("取消","Cancel")}</button>`;
+  el.innerHTML=h;
+}
+function loadSlot(i){
+  const raw=localStorage.getItem("pixel_rpg_slot"+i);
+  if(!raw){alert(t("此欄位沒有存檔","Empty slot"));return;}
+  G=JSON.parse(raw);currentSlot=i;
+  eventLog=G.eventLog||[];availableQuests=G.availableQuests||[];
   if(!availableQuests.length)generateAvailableQuests();
   updateUI();renderMap();checkTile();renderLog();
+  document.getElementById("save-slots").style.display="none";
   showScreen("game-screen");
 }
-function saveGame(){if(!G)return;G.eventLog=eventLog.slice(-20);G.availableQuests=availableQuests;localStorage.setItem("pixel_rpg_v10",JSON.stringify(G));}
-function resetAll(){if(confirm("確定重置？")){localStorage.removeItem("pixel_rpg_v10");G=null;showScreen("title-screen");}}
+function saveToSlot(i){
+  if(!G)return;
+  currentSlot=i;
+  G.eventLog=eventLog.slice(-20);G.availableQuests=availableQuests;
+  localStorage.setItem("pixel_rpg_slot"+i,JSON.stringify(G));
+  alert(t("已存檔至欄位 ","Saved to slot ")+i);
+  document.getElementById("save-slots").style.display="none";
+}
+function continueGame(){showSaveSlots("load");}
+function saveGame(){if(!G)return;G.eventLog=eventLog.slice(-20);G.availableQuests=availableQuests;localStorage.setItem("pixel_rpg_slot"+currentSlot,JSON.stringify(G));}
+function resetAll(){if(confirm(t("確定重置所有存檔？","Reset all saves?"))){for(let i=1;i<=5;i++)localStorage.removeItem("pixel_rpg_slot"+i);G=null;showScreen("title-screen");}}
+function toggleLang(){LANG=LANG==="zh"?"en":"zh";localStorage.setItem("pixel_rpg_lang",LANG);alert(t("已切換為中文","Switched to English"));location.reload();}
 
 function addLog(msg){eventLog.push(msg);if(eventLog.length>30)eventLog.shift();renderLog();}
 function renderLog(){const el=document.getElementById("event-log");if(!el)return;el.innerHTML=eventLog.slice(-8).map(m=>`<div>${m}</div>`).join("");el.scrollTop=el.scrollHeight;}
