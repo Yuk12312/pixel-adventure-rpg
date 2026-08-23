@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -167,7 +166,12 @@ button:active{background:#444}button:disabled{opacity:.45}
 <div id="quest-screen" class="screen"><h2 class="text-center mb-6">📋 Quests</h2><div id="quest-content"></div><button class="btn mt-6" onclick="showScreen('game-screen')">← Back</button></div>
 <div id="bag-screen" class="screen"><h2 class="text-center mb-6">🎒 Bag</h2><div class="tab-bar" id="bag-tabs"></div><div id="bag-content"></div><button class="btn mt-6" onclick="backFromMenu()">← Back</button></div>
 <div id="pet-screen" class="screen"><h2 class="text-center mb-6">🐾 Pets</h2><div id="pet-content"></div><button class="btn mt-6" onclick="backFromMenu()">← Back</button></div>
-<div id="setting-screen" class="screen"><h2 class="text-center mb-6">⚙️ Settings</h2><button class="btn" onclick="toggleLang()">🌐 Toggle Language</button><button class="btn" onclick="showSaveSlots('save')">💾 Manual Save to Slot</button><button class="btn danger" onclick="resetAll()">🗑️ Reset All Saves</button><button class="btn mt-6" onclick="backFromMenu()">← Back</button></div>
+<div id="setting-screen" class="screen"><h2 class="text-center mb-6">⚙️ Settings</h2>
+<button class="btn" onclick="toggleLang()">🌐 Toggle Language</button>
+<button class="btn" id="sfx-toggle-btn" onclick="const on=sfxToggle();this.textContent=on?t('🔊 音效：開','🔊 SFX: On'):t('🔇 音效：關','🔇 SFX: Off')">🔊 SFX: On</button>
+<button class="btn" onclick="showSaveSlots('save')">💾 Manual Save to Slot</button>
+<button class="btn danger" onclick="resetAll()">🗑️ Reset All Saves</button>
+<button class="btn mt-6" onclick="backFromMenu()">← Back</button></div>
 <div id="guild-screen" class="screen"><h2 class="text-center mb-6">🏛️ Guild</h2><div id="guild-content"></div><button class="btn mt-6" onclick="backFromMenu()">← Back</button></div>
 <div id="shop-screen" class="screen"><h2 class="text-center mb-6">🛒 Shop</h2><div id="shop-content"></div><button class="btn mt-6" onclick="backFromMenu()">← Back</button></div>
 <div id="alchemy-screen" class="screen"><h2 class="text-center mb-6">🧪 Alchemy</h2><div id="alchemy-content"></div><button class="btn mt-6" onclick="backFromMenu()">← Back</button></div>
@@ -287,28 +291,130 @@ let currentSlot=1;
 let LANG=localStorage.getItem("pixel_rpg_lang")||"en";
 function t(zh,en){return LANG==="zh"?zh:en;}
 
-/* Lightweight SFX (no external files) */
-const SFX={_ac:null,_enabled:true};
-function sfxInit(){try{SFX._ac=SFX._ac||new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}
-function playTone(freq,dur,type,vol){
-  if(!SFX._enabled)return;
+/* Improved SFX engine (Web Audio, no external files) */
+const SFX={
+  _ac:null,
+  _enabled: localStorage.getItem("pixel_rpg_sfx")!=="0",
+  _master:0.7
+};
+function sfxInit(){
   try{
-    sfxInit();const ac=SFX._ac;if(!ac)return;
-    if(ac.state==="suspended")ac.resume();
-    const o=ac.createOscillator(),g=ac.createGain();
-    o.type=type||"square";o.frequency.value=freq;
-    g.gain.value=vol||0.04;
-    g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+(dur||0.08));
-    o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+(dur||0.08));
+    if(!SFX._ac) SFX._ac=new (window.AudioContext||window.webkitAudioContext)();
+    if(SFX._ac.state==="suspended") SFX._ac.resume();
   }catch(e){}
+  return SFX._ac;
 }
-function sfxHit(){playTone(180,0.07,"square",0.05);playTone(90,0.09,"triangle",0.03);}
-function sfxCrit(){playTone(420,0.06,"square",0.06);playTone(620,0.1,"sawtooth",0.03);}
-function sfxHeal(){playTone(520,0.08,"sine",0.04);playTone(780,0.1,"sine",0.03);}
-function sfxWin(){playTone(330,0.08,"square",0.05);setTimeout(()=>playTone(440,0.1,"square",0.05),80);setTimeout(()=>playTone(550,0.14,"square",0.05),160);}
-function sfxLose(){playTone(160,0.15,"sawtooth",0.05);setTimeout(()=>playTone(100,0.2,"triangle",0.04),120);}
-function sfxClick(){playTone(600,0.03,"square",0.025);}
-function sfxRare(){playTone(480,0.08,"sine",0.05);setTimeout(()=>playTone(720,0.12,"sine",0.04),90);}
+function sfxToggle(){
+  SFX._enabled=!SFX._enabled;
+  localStorage.setItem("pixel_rpg_sfx", SFX._enabled?"1":"0");
+  if(SFX._enabled){sfxInit();sfxClick();}
+  return SFX._enabled;
+}
+function _env(g, t0, a, d, s, r, peak){
+  // ADSR-ish
+  peak=peak||0.08;
+  g.gain.cancelScheduledValues(t0);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.linearRampToValueAtTime(peak, t0+a);
+  g.gain.linearRampToValueAtTime(peak*s, t0+a+d);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0+a+d+r);
+}
+function playTone(freq, dur, type, vol, slideTo){
+  if(!SFX._enabled)return;
+  const ac=sfxInit(); if(!ac)return;
+  const t0=ac.currentTime;
+  const o=ac.createOscillator();
+  const g=ac.createGain();
+  const f=ac.createBiquadFilter();
+  o.type=type||"square";
+  o.frequency.setValueAtTime(freq, t0);
+  if(slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(20,slideTo), t0+dur);
+  f.type="lowpass"; f.frequency.value=Math.min(6000, freq*4);
+  _env(g, t0, 0.005, Math.min(0.04,dur*0.3), 0.5, Math.max(0.03,dur*0.6), (vol||0.06)*SFX._master);
+  o.connect(f); f.connect(g); g.connect(ac.destination);
+  o.start(t0); o.stop(t0+dur+0.05);
+}
+function playNoise(dur, vol, bpFreq){
+  if(!SFX._enabled)return;
+  const ac=sfxInit(); if(!ac)return;
+  const t0=ac.currentTime;
+  const len=Math.max(1, Math.floor(ac.sampleRate*dur));
+  const buf=ac.createBuffer(1, len, ac.sampleRate);
+  const data=buf.getChannelData(0);
+  for(let i=0;i<len;i++) data[i]=(Math.random()*2-1)*Math.pow(1-i/len, 0.6);
+  const src=ac.createBufferSource(); src.buffer=buf;
+  const f=ac.createBiquadFilter();
+  f.type="bandpass"; f.frequency.value=bpFreq||800; f.Q.value=0.8;
+  const g=ac.createGain();
+  g.gain.setValueAtTime((vol||0.08)*SFX._master, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+  src.connect(f); f.connect(g); g.connect(ac.destination);
+  src.start(t0); src.stop(t0+dur+0.02);
+}
+function playChord(freqs, dur, type, vol){
+  freqs.forEach((f,i)=>setTimeout(()=>playTone(f, dur, type||"triangle", (vol||0.04)*(1-i*0.1)), i*40));
+}
+function sfxHit(){
+  playNoise(0.06, 0.1, 600);
+  playTone(140, 0.09, "square", 0.05, 70);
+  playTone(90, 0.11, "triangle", 0.03);
+}
+function sfxCrit(){
+  playNoise(0.08, 0.12, 1200);
+  playTone(280, 0.07, "sawtooth", 0.06, 420);
+  playTone(560, 0.12, "square", 0.04);
+  setTimeout(()=>playTone(840, 0.08, "triangle", 0.03), 50);
+}
+function sfxHeal(){
+  playTone(392, 0.1, "sine", 0.04);
+  setTimeout(()=>playTone(523, 0.12, "sine", 0.04), 60);
+  setTimeout(()=>playTone(659, 0.14, "sine", 0.035), 120);
+}
+function sfxWin(){
+  playChord([262,330,392,523], 0.16, "triangle", 0.05);
+  setTimeout(()=>playTone(659, 0.22, "sine", 0.045), 220);
+}
+function sfxLose(){
+  playTone(220, 0.18, "sawtooth", 0.05, 110);
+  setTimeout(()=>playTone(140, 0.25, "triangle", 0.04, 70), 100);
+  playNoise(0.2, 0.05, 300);
+}
+function sfxClick(){
+  playTone(880, 0.025, "square", 0.03);
+  playTone(1320, 0.02, "triangle", 0.015);
+}
+function sfxRare(){
+  playTone(523, 0.1, "sine", 0.045);
+  setTimeout(()=>playTone(659, 0.1, "sine", 0.04), 70);
+  setTimeout(()=>playTone(784, 0.14, "sine", 0.04), 140);
+  setTimeout(()=>playTone(1046, 0.18, "triangle", 0.035), 210);
+}
+function sfxSkill(){
+  playTone(300, 0.08, "sawtooth", 0.045, 500);
+  playNoise(0.05, 0.06, 1500);
+  setTimeout(()=>playTone(600, 0.1, "square", 0.035), 40);
+}
+function sfxCapture(){
+  playTone(400, 0.08, "sine", 0.04, 600);
+  setTimeout(()=>playTone(700, 0.1, "sine", 0.04), 90);
+  setTimeout(()=>playTone(950, 0.16, "triangle", 0.04), 180);
+}
+function sfxGather(){
+  playNoise(0.05, 0.06, 900);
+  playTone(240, 0.06, "triangle", 0.03);
+}
+function sfxStep(){
+  playNoise(0.03, 0.035, 400);
+}
+function sfxBoss(){
+  playTone(80, 0.3, "sawtooth", 0.06, 50);
+  playNoise(0.25, 0.08, 150);
+  setTimeout(()=>playTone(60, 0.35, "square", 0.04), 150);
+}
+function sfxLevel(){
+  playChord([392,494,587,784], 0.14, "sine", 0.045);
+}
+
 
 
 
@@ -597,6 +703,8 @@ function applyLanguage(){
   // Settings
   const sh=document.querySelector("#setting-screen h2");
   if(sh)sh.textContent=t("⚙️ 設定 / Settings","⚙️ Settings");
+  const sfxBtn=document.getElementById("sfx-toggle-btn");
+  if(sfxBtn)sfxBtn.textContent=SFX._enabled?t("🔊 音效：開","🔊 SFX: On"):t("🔇 音效：關","🔇 SFX: Off");
   const sbtns=document.querySelectorAll("#setting-screen .btn");
   if(sbtns[0])sbtns[0].textContent=t("🌐 切換語言 / Toggle Language","🌐 Toggle Language");
   if(sbtns[1])sbtns[1].textContent=t("💾 手動存檔至欄位","💾 Manual Save to Slot");
@@ -894,7 +1002,7 @@ function refreshDaily(){
   if(rpos){
     if(rareRoll<0.08){
       G.mapEvents[rpos]={type:"rare",rare:"chest",icon:"🎁",name:t("神秘寶箱","Mystery Chest")};
-      addLog(t("✨ 稀有：地圖上出現神秘寶箱！","✨ Rare: A mystery chest appeared on the map!"));
+      sfxRare();addLog(t("✨ 稀有：地圖上出現神秘寶箱！","✨ Rare: A mystery chest appeared on the map!"));
     }else if(rareRoll<0.14){
       G.mapEvents[rpos]={type:"rare",rare:"shrine",icon:"⛩️",name:t("古老神龕","Ancient Shrine")};
       addLog(t("✨ 稀有：發現古老神龕。","✨ Rare: An ancient shrine was found."));
@@ -918,7 +1026,7 @@ function move(dx,dy){
   if(G.ap<=0){dialogue(t("行動點不足","Not enough AP"));return;}
   const nx=G.x+dx,ny=G.y+dy;
   if(nx<0||nx>4||ny<0||ny>4)return;
-  G.x=nx;G.y=ny;G.stamina--;G.ap--;
+  G.x=nx;G.y=ny;G.stamina--;G.ap--;sfxStep();
   renderMap();checkTile();updateUI();saveGame();
   if(G.stamina<=0){
     dialogue(t("體力耗盡，進入下一日…","Stamina depleted. Advancing to next day..."));
@@ -992,7 +1100,7 @@ function checkTile(){
 }
 function dialogue(msg){document.getElementById("dialogue").textContent=msg;}
 
-function gather(k){if(G.stamina<1||G.ap<1)return;G.stamina--;G.ap--;const ev=G.mapEvents[k];if(!G.inv[ev.res])G.inv[ev.res]={};const rar=Math.random()<0.55?0:(Math.random()<0.65?1:(Math.random()<0.65?2:(Math.random()<0.55?3:4)));G.inv[ev.res][rar]=(G.inv[ev.res][rar]||0)+1;addLog(t("採集到 ","Gathered ")+tn(ev.res)+"（"+rarityName(rar)+"）");let gexp=6+Math.floor(Math.random()*5);if(G.level<5)gexp=Math.floor(gexp*1.6);if(G.level<3)gexp+=4;if(G.firstGather){G.firstGather=false;gexp+=12;G.gold+=15;addLog(t("🌟 第一次採集獎勵！","🌟 First gather bonus!"));sfxRare();}G.exp+=gexp;addLog(t("採集獲得 EXP+","Gather EXP+")+gexp);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.35);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;G.gold+=10+G.level*2;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(t("等級","Lv")+G.level+t("！AP上限+1","! AP max +1"));}addLog(t("升級！Lv.","Level up! Lv.")+G.level+t("（獎勵金幣）"," (gold bonus)"));if(G.tutorialStep&&G.tutorialStep<3&&G.level>=3){G.tutorialStep=3;uiAlert(t("太好了！你達到 3 級。\n回村莊解鎖工會，接第一個任務吧。","Great! You reached Lv.3.\nReturn to the village to unlock the Guild and take a quest."));}}if(ev.res==="ore"&&Math.random()<0.12){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog(t("採礦幸運獲得強化石！","Lucky mining: Enhance Stone!"));}updateQuestProgress("Gather",1);delete G.mapEvents[k];updateUI();saveGame();checkTile();}
+function gather(k){if(G.stamina<1||G.ap<1)return;G.stamina--;G.ap--;const ev=G.mapEvents[k];if(!G.inv[ev.res])G.inv[ev.res]={};const rar=Math.random()<0.55?0:(Math.random()<0.65?1:(Math.random()<0.65?2:(Math.random()<0.55?3:4)));G.inv[ev.res][rar]=(G.inv[ev.res][rar]||0)+1;addLog(t("採集到 ","Gathered ")+tn(ev.res)+"（"+rarityName(rar)+"）");let gexp=6+Math.floor(Math.random()*5);if(G.level<5)gexp=Math.floor(gexp*1.6);if(G.level<3)gexp+=4;if(G.firstGather){G.firstGather=false;gexp+=12;G.gold+=15;addLog(t("🌟 第一次採集獎勵！","🌟 First gather bonus!"));sfxRare();}G.exp+=gexp;addLog(t("採集獲得 EXP+","Gather EXP+")+gexp);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.35);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;G.gold+=10+G.level*2;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(t("等級","Lv")+G.level+t("！AP上限+1","! AP max +1"));}sfxLevel();addLog(t("升級！Lv.","Level up! Lv.")+G.level+t("（獎勵金幣）"," (gold bonus)"));if(G.tutorialStep&&G.tutorialStep<3&&G.level>=3){G.tutorialStep=3;uiAlert(t("太好了！你達到 3 級。\n回村莊解鎖工會，接第一個任務吧。","Great! You reached Lv.3.\nReturn to the village to unlock the Guild and take a quest."));}}if(ev.res==="ore"&&Math.random()<0.12){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog(t("採礦幸運獲得強化石！","Lucky mining: Enhance Stone!"));}sfxGather();updateQuestProgress("Gather",1);delete G.mapEvents[k];updateUI();saveGame();checkTile();}
 function gatherFixed(type){if(G.stamina<1||G.ap<1)return;G.stamina--;G.ap--;const map={mine:"ore",herb:"herb",wood:"wood"};const res=map[type];const rar=Math.random()<0.55?0:(Math.random()<0.65?1:(Math.random()<0.65?2:(Math.random()<0.55?3:4)));if(!G.inv[res])G.inv[res]={};G.inv[res][rar]=(G.inv[res][rar]||0)+1;addLog(t("採集到 ","Gathered ")+tn(res)+"（"+rarityName(rar)+"）");let gexp=6+Math.floor(Math.random()*5);if(G.level<5)gexp=Math.floor(gexp*1.6);if(G.level<3)gexp+=4;if(G.firstGather){G.firstGather=false;gexp+=12;G.gold+=15;addLog(t("🌟 第一次採集獎勵！","🌟 First gather bonus!"));sfxRare();}G.exp+=gexp;addLog(t("採集獲得 EXP+","Gather EXP+")+gexp);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.35);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;G.gold+=10+G.level*2;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(t("等級","Lv")+G.level+t("！AP上限+1","! AP max +1"));}addLog(t("升級！Lv.","Level up! Lv.")+G.level+t("（獎勵金幣）"," (gold bonus)"));}if(type==="mine"&&Math.random()<0.12){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog(t("採礦幸運獲得強化石！","Lucky mining: Enhance Stone!"));}updateQuestProgress("Gather",1);updateUI();saveGame();}
 function rest(){G.hp=G.maxHp;G.mp=G.maxMp;nextDay();addLog(t("休息完畢","Rested"));}
 
@@ -1008,7 +1116,7 @@ function startBossBattle(){
   const intro = first
     ? t("【魔王戰】\n\n地面裂開，硫磺與紅光湧出。\n一個巨大的身影從深淵抬起頭——\n「又一個送死的勇者嗎？」\n\n戰鬥開始！","[Demon Lord]\n\nThe ground splits. Sulfur and red light pour out.\nA colossal silhouette rises from the abyss—\n\"Another hero rushing to die?\"\n\nBattle begins!")
     : t("【魔王再臨】\n\n熟悉的紅光再次燃起。\n「你……又來了。」\n魔王的聲音比上次更沉。\n\n再戰！","[Demon Lord Returns]\n\nThe familiar red glow ignites again.\n\"You... returned.\"\nHis voice is heavier than before.\n\nFight again!");
-  uiAlert(intro).then(()=>{
+  sfxBoss();uiAlert(intro).then(()=>{
     startBattleWith({name:"魔王",icon:"👿",hp,atk,spd:9,rarity:4,maxHp:hp,isBoss:true,berserk:false});
     addBLog(t("—— 魔王戰 ——","— DEMON LORD BATTLE —"));
     if(first) addBLog(t("這是決定你能否成為勇者的一戰。","This fight decides if you become a Hero."));
@@ -1112,7 +1220,7 @@ function pAct(a,skillIdx){
     const sk=G.skills[skillIdx||0];
     if(!sk){addBLog(t("無技能","No skill"));return;}
     if(G.mp<sk.mp){addBLog(t("MP不足","Not enough MP"));return;}
-    G.mp-=sk.mp;G.combo=(G.combo||0)+1;
+    G.mp-=sk.mp;G.combo=(G.combo||0)+1;sfxSkill();
     const enh=(sk.enhance||0);
     const bond=G.activePet&&G.activePet.hp>0?Math.floor((G.activePet.bond||0)/8):0;
     const base=totalAtk()+bond;
@@ -1259,7 +1367,7 @@ function tryCapture(){
   if(battle.enemy.elite)rate*=0.7;
   if(battle.enemy.isBoss)rate=Math.min(rate,0.005);
   if(Math.random()<rate){
-    addBLog(t("捕捉成功！","Capture success!"));
+    sfxCapture();addBLog(t("捕捉成功！","Capture success!"));
     const pet={
       id:Date.now(),name:battle.enemy.name,icon:battle.enemy.icon,
       rarity:battle.enemy.rarity||1,level:1,exp:0,maxExp:30,
