@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Pixel Adventure RPG v22</title>
+<title>Pixel Adventure RPG v23</title>
 <style>
 :root{--bg:#0f0f0f;--panel:#1a1a1a;--border:#444;--accent:#00e6b8;--gold:#ffcc00;--danger:#ff5555;--text:#eee}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -47,7 +47,7 @@ button:active{background:#444}button:disabled{opacity:.45}
 
 <div id="title-screen" class="screen active">
   <h1>🧙 像素冒險 RPG</h1>
-  <div class="subtitle">v22 · 多存檔 + 中英切換</div>
+  <div class="subtitle">v23 · 多存檔管理 + 語言切換加強</div>
   <button class="menu-btn" onclick="startNewGame()">▶ 開始遊戲 / New Game</button>
   <button class="menu-btn" onclick="showSaveSlots('load')">📂 讀取存檔 / Load</button>
   <button class="menu-btn" onclick="showScreen('setting-screen')">⚙️ 設定 / Settings</button>
@@ -239,7 +239,14 @@ function showSaveSlots(mode){
     const raw=localStorage.getItem("pixel_rpg_slot"+i);
     let info=t("空欄位","Empty");
     if(raw){try{const d=JSON.parse(raw);info=`${d.name||"?"} Lv.${d.level||1} Day${d.day||1}`;}catch(e){}}
-    h+=`<button class="btn" onclick="${mode==='load'?`loadSlot(${i})`:`saveToSlot(${i})`}">Slot ${i}: ${info}</button>`;
+    h+=`<div class="list-item"><span>Slot ${i}: ${info}</span><div>`;
+    if(mode==="load"){
+      h+=`<button class="btn small" onclick="loadSlot(${i})">${t("讀取","Load")}</button>`;
+      if(raw)h+=`<button class="btn small danger" onclick="deleteSlot(${i})">${t("刪除","Delete")}</button>`;
+    }else{
+      h+=`<button class="btn small" onclick="saveToSlot(${i})">${t("存檔","Save")}</button>`;
+    }
+    h+=`</div></div>`;
   }
   h+=`<button class="btn" onclick="document.getElementById('save-slots').style.display='none'">${t("取消","Cancel")}</button>`;
   el.innerHTML=h;
@@ -262,10 +269,16 @@ function saveToSlot(i){
   alert(t("已存檔至欄位 ","Saved to slot ")+i);
   document.getElementById("save-slots").style.display="none";
 }
+function deleteSlot(i){
+  if(!confirm(t("確定刪除欄位 ","Delete slot ")+i+"?"))return;
+  localStorage.removeItem("pixel_rpg_slot"+i);
+  alert(t("已刪除","Deleted"));
+  showSaveSlots("load");
+}
 function continueGame(){showSaveSlots("load");}
 function saveGame(){if(!G)return;G.eventLog=eventLog.slice(-20);G.availableQuests=availableQuests;localStorage.setItem("pixel_rpg_slot"+currentSlot,JSON.stringify(G));}
 function resetAll(){if(confirm(t("確定重置所有存檔？","Reset all saves?"))){for(let i=1;i<=5;i++)localStorage.removeItem("pixel_rpg_slot"+i);G=null;showScreen("title-screen");}}
-function toggleLang(){LANG=LANG==="zh"?"en":"zh";localStorage.setItem("pixel_rpg_lang",LANG);alert(t("已切換為中文","Switched to English"));location.reload();}
+function toggleLang(){LANG=LANG==="zh"?"en":"zh";localStorage.setItem("pixel_rpg_lang",LANG);alert(LANG==="zh"?"已切換為中文":"Switched to English");location.reload();}
 
 function addLog(msg){eventLog.push(msg);if(eventLog.length>30)eventLog.shift();renderLog();}
 function renderLog(){const el=document.getElementById("event-log");if(!el)return;el.innerHTML=eventLog.slice(-8).map(m=>`<div>${m}</div>`).join("");el.scrollTop=el.scrollHeight;}
