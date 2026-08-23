@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Pixel Adventure RPG v26</title>
+<title>Pixel Adventure RPG v27</title>
 <style>
 :root{--bg:#0f0f0f;--panel:#1a1a1a;--border:#444;--accent:#00e6b8;--gold:#ffcc00;--danger:#ff5555;--text:#eee}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -46,7 +46,7 @@ button:active{background:#444}button:disabled{opacity:.45}
 
 <div id="title-screen" class="screen active">
   <h1>🧙 像素冒險 RPG</h1>
-  <div class="subtitle">v26 · 內容深化 + 平衡 + UI打磨 + 成就豐富</div>
+  <div class="subtitle">v27 · 最終打磨版（圖示 + 中文名 + 魔王平衡）</div>
   <button class="menu-btn" onclick="startNewGame()">▶ 開始遊戲 / New Game</button>
   <button class="menu-btn" onclick="showSaveSlots('load')">📂 讀取存檔 / Load</button>
   <button class="menu-btn" onclick="showScreen('setting-screen')">⚙️ 設定 / Settings</button>
@@ -154,7 +154,7 @@ button:active{background:#444}button:disabled{opacity:.45}
 </div>
 
 <script>
-const DIFF={easy:{stamina:20,monMul:0.75,bossMin:180},normal:{stamina:15,monMul:1,bossMin:280},hard:{stamina:10,monMul:1.35,bossMin:400}};
+const DIFF={easy:{stamina:20,monMul:0.75,bossMin:180},normal:{stamina:15,monMul:1,bossMin:280},hard:{stamina:10,monMul:1.2,bossMin:350}};
 const JOBS={
 warrior:{hp:30,atk:2,def:5,mp:10,ap:0,spd:8,crit:5,skills:[["重擊","強力攻擊",12],["堅守","提升防禦",8]]},
 mage:{hp:0,atk:8,def:0,mp:40,ap:0,spd:7,crit:8,skills:[["火球","火焰傷害",15],["冰霜","減速",12]]},
@@ -306,11 +306,11 @@ function totalSpd(){let s=G.spd+(G.activePet?.spd||0);["head","body","pants","sh
 
 function getTile(k){const f={"2,2":{icon:"🏘️",type:"village"},"2,1":{icon:"🌲",type:"forest"},"3,2":{icon:"💀",type:"boss"},"0,0":{icon:"⛏️",type:"mine"},"4,0":{icon:"🌿",type:"herb"},"0,4":{icon:"🪵",type:"wood"},"4,4":{icon:"🕳️",type:"ruins"},"1,2":{icon:"🎣",type:"fish"},"3,1":{icon:"🎣",type:"fish"}};return f[k];}
 function renderMap(){
-  let grass="🟩";
-  if(G.season==="夏")grass="🟨";
-  else if(G.season==="秋")grass="🟧";
-  else if(G.season==="冬")grass="⬜️";
-  if(G.weather==="雨天")grass="🟦";
+  let grass="🌱";
+  if(G.season==="夏")grass="☀️";
+  else if(G.season==="秋")grass="🍂";
+  else if(G.season==="冬")grass="❄️";
+  if(G.weather==="雨天")grass="🌧️";
   else if(G.weather==="陰天")grass="☁️";
   else if(G.weather==="大霧"||G.weather==="打雷")grass="⛈️";
   let h="";for(let y=0;y<5;y++)for(let x=0;x<5;x++){const k=`${x},${y}`,isP=x===G.x&&y===G.y;let icon=isP?"🧙‍♂️":grass;const t=getTile(k);if(t)icon=t.icon;const ev=G.mapEvents[k];if(!isP&&ev){if(ev.type==="res")icon=ev.icon;else if(ev.type==="mon")icon=ev.icon;else if(ev.type==="npc")icon=ev.icon;}h+=`<div class="map-cell ${isP?"player-here":""}">${icon}</div>`;}
@@ -380,8 +380,8 @@ function rest(){G.hp=G.maxHp;G.mp=G.maxMp;nextDay();addLog("休息完畢");}
 /* ========== 戰鬥（含魔王狂暴） ========== */
 function startForestBattle(){if(G.ap<1){dialogue("AP不足");return;}G.ap--;const m=MONSTERS[Math.floor(Math.random()*MONSTERS.length)];const mul=(0.9+Math.random()*0.35)*(1+G.day*0.018)*DIFF[G.diff].monMul;startBattleWith({name:m.name,icon:m.icon,hp:Math.floor(m.hp*mul),atk:Math.floor(m.atk*mul),spd:m.spd,rarity:m.r,maxHp:0});}
 function startBossBattle(){
-  const sc=1+G.day*0.04+G.level*0.035;
-  let hp=Math.floor(320*sc*DIFF[G.diff].monMul);
+  const sc=1+G.day*0.025+G.level*0.025;
+  let hp=Math.floor(280*sc*DIFF[G.diff].monMul);
   hp=Math.max(hp,DIFF[G.diff].bossMin);
   startBattleWith({name:"魔王",icon:"👿",hp,atk:Math.floor(28*sc),spd:9,rarity:4,maxHp:hp,isBoss:true,berserk:false});
 }
@@ -763,7 +763,8 @@ function renderBag(){
   document.getElementById("bag-tabs").innerHTML=tabs.map(t=>`<div class="tab ${bagTab===t.id?"active":""}" onclick="bagTab='${t.id}';renderBag()">${t.n}</div>`).join("");
   let h="";
   if(bagTab==="cons"){
-    ["potion","mpPotion","food","capture","revive","atkPotion","defPotion","townScroll"].forEach(k=>{const n=G.inv[k]||0;if(n>0)h+=`<div class="list-item"><span>${k} ×${n}</span><button class="btn small" onclick="useBag('${k}')">使用</button></div>`;});
+    const nameMap={potion:"回血藥",mpPotion:"回魔藥",food:"食物",capture:"捕捉球",revive:"復活藥",atkPotion:"加攻藥",defPotion:"加防藥",townScroll:"回城卷",skillStone:"強化石"};
+    ["potion","mpPotion","food","capture","revive","atkPotion","defPotion","townScroll","skillStone"].forEach(k=>{const n=G.inv[k]||0;if(n>0)h+=`<div class="list-item"><span>${nameMap[k]||k} ×${n}</span><button class="btn small" onclick="useBag('${k}')">使用</button></div>`;});
     if(G.fishInv){for(let fn in G.fishInv){if(G.fishInv[fn]>0)h+=`<div class="list-item"><span>🐟 ${fn} ×${G.fishInv[fn]}</span></div>`;}}
   }
   else if(bagTab==="equip"){
@@ -778,11 +779,12 @@ function renderBag(){
   }
   else{
     h+=`<div class="small mb-6">材料可進行3合1稀有度升級</div>`;
+    const resName={ore:"礦石",herb:"藥草",wood:"木材"};
     ["ore","herb","wood"].forEach(res=>{
       for(let i=0;i<=4;i++){
         const n=(G.inv[res]&&G.inv[res][i])||0;
         if(n>0){
-          h+=`<div class="list-item"><span class="r${i}">${res}（${RARITY[i]}）×${n}</span>`;
+          h+=`<div class="list-item"><span class="r${i}">${resName[res]}（${RARITY[i]}）×${n}</span>`;
           if(i<4 && n>=3)h+=`<button class="btn small" onclick="upgradeRarity('${res}',${i})">合成</button>`;
           h+=`</div>`;
         }
