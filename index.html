@@ -234,7 +234,7 @@ function selectDiff(d){window._diff=d;showScreen("job-screen");}
 function selectJob(j){
   window._job=j;
   const sk=JOBS[j].skills;
-  let h=`<div class="small mb-6">${t("選擇初始技能：","Select starting skill:")}</div>`;
+  let h=`<div class="small mb-6">${t("選擇初始技能（另一個技能將在 Lv.5 解鎖）：","Select starting skill (the other unlocks at Lv.5):")}</div>`;
   sk.forEach((s,i)=>h+=`<button class="menu-btn" onclick="confirmSkill(${i})">${tn(s[0])} (MP ${s[2]})<br><span class="small">${tn(s[1])}</span></button>`);
   document.getElementById("skill-pick-content").innerHTML=h;
   showScreen("skill-pick-screen");
@@ -418,25 +418,54 @@ function playStoryEvent(id){
   uiAlert(msg);
 }
 
+function tryUnlockJobSkills(){
+  if(!G||!G.job)return;
+  const jobSkills=JOBS[G.job]&&JOBS[G.job].skills;
+  if(!jobSkills)return;
+  G.skills.forEach(sk=>{
+    if(!sk.effect){
+      const match=jobSkills.find(js=>js[0]===sk.name);
+      if(match)sk.effect=match[3]||"heavy";
+    }
+  });
+  if(G.level>=5 && jobSkills[1]){
+    const s2=jobSkills[1];
+    if(!G.skills.some(s=>s.name===s2[0])){
+      G.skills.push({name:s2[0],desc:s2[1],mp:s2[2],effect:s2[3]||"heavy",enhance:0});
+      addLog(t("✨ 學會新技能【","✨ Learned skill 【")+tn(s2[0])+"】！");
+      uiAlert(t("技能解鎖！\n\n你學會了【","Skill unlocked!\n\nYou learned 【")+tn(s2[0])+t("】\n可在戰鬥中使用。","】\nUsable in battle."));
+    }
+  }
+  if(G.level>=10 && G.storyFlags && !G.storyFlags.skillMaster){
+    G.storyFlags.skillMaster=true;
+    G.skills.forEach(s=>{if((s.enhance||0)<1)s.enhance=1;});
+    addLog(t("✨ 戰鬥感悟：所有技能自動 +1 強化！","✨ Insight: all skills gain +1 enhance!"));
+  }
+}
 function advanceStory(){
   if(!G)return;
   if(!G.storyFlags)G.storyFlags={};
   let s=G.storyStage||0;
-  // Stage progression based on player state
   if(s<1 && (G.day>=1)){G.storyStage=1;playStoryEvent("intro");}
   if((G.storyStage||0)<2 && G.level>=3){
     G.storyStage=2;
-    if(!G.storyFlags.guildTip){G.storyFlags.guildTip=true;addLog(t("📜 主線：工會已可解鎖。回村莊接任務吧！","📜 Story: Guild can unlock. Return to village for quests!"));playStoryEvent("guild");}
+    if(!G.storyFlags.guildTip){
+      G.storyFlags.guildTip=true;
+      addLog(t("📜 主線：工會已可解鎖。回村莊接任務吧！","📜 Story: Guild can unlock. Return to village for quests!"));
+      playStoryEvent("guild");
+    }
   }
-  if((G.storyStage||0)<3 && (G.commissions||[]).length===0 && G.fame>=10){
-    G.storyStage=3;
-  }
-  if((G.storyStage||0)<3 && G.level>=4){G.storyStage=3;}
+  if((G.storyStage||0)<3 && G.level>=4){G.storyStage=3;playStoryEvent("forest");}
   if((G.storyStage||0)<4 && G.level>=6){
     G.storyStage=4;
-    if(!G.storyFlags.bossTip){G.storyFlags.bossTip=true;addLog(t("📜 主線：魔王窟就在地圖東方（💀）。準備好就去挑戰！","📜 Story: Demon Lair is east on the map (💀). Challenge when ready!"));uiAlert(t("主線更新：前往東方魔王窟，挑戰魔王！","Story update: Head east to the Demon Lair and challenge the Demon Lord!"));}
+    if(!G.storyFlags.bossTip){
+      G.storyFlags.bossTip=true;
+      addLog(t("📜 主線：魔王窟就在地圖東方（💀）。準備好就去挑戰！","📜 Story: Demon Lair is east on the map (💀). Challenge when ready!"));
+      playStoryEvent("preboss");
+    }
   }
-  if(G.heroTitle){G.storyStage=5;}
+  if(G.heroTitle){G.storyStage=5;playStoryEvent("hero");}
+  tryUnlockJobSkills();
   updateObjective();
 }
 
@@ -607,24 +636,81 @@ function toggleLang(){
 }
 
 function showSaveSlots(mode){
+  window._saveMode=mode;
+  const ov=document.getElementById("modal-overlay");
+  const msgEl=document.getElementById("modal-msg");
+  const act=document.getElementById("modal-actions");
+  // Fallback: also fill title-screen container if present
   const el=document.getElementById("save-slots");
-  el.style.display="block";
-  let h=`<div class="small mb-6">${mode==="load"?t("選擇讀取欄位","Select Load Slot"):t("選擇存檔欄位","Select Save Slot")}</div>`;
+  if(el && document.querySelector("#title-screen.active")){
+    el.style.display="block";
+  }
+  if(!ov||!msgEl||!act){
+    if(el){
+      let h=`<div class="small mb-6">${mode==="load"?t("選擇讀取欄位","Select Load Slot"):t("選擇存檔欄位","Select Save Slot")}</div>`;
+      for(let i=1;i<=5;i++){
+        const raw=localStorage.getItem("pixel_rpg_slot"+i);
+        let info=t("空欄位","Empty");
+        if(raw){try{const d=JSON.parse(raw);info=`${d.name||"?"} Lv.${d.level||1} Day ${d.day||1}`;}catch(e){}}
+        h+=`<div class="list-item"><span>Slot ${i}: ${info}</span><div>`;
+        if(mode==="load"){
+          h+=`<button class="btn small" onclick="loadSlot(${i})">${t("讀取","Load")}</button>`;
+          if(raw)h+=`<button class="btn small danger" onclick="deleteSlot(${i})">${t("刪除","Delete")}</button>`;
+        }else{
+          h+=`<button class="btn small" onclick="saveToSlot(${i})">${t("存檔","Save")}</button>`;
+        }
+        h+=`</div></div>`;
+      }
+      h+=`<button class="btn" onclick="document.getElementById('save-slots').style.display='none'">${t("取消","Cancel")}</button>`;
+      el.innerHTML=h; el.style.display="block";
+    }
+    return;
+  }
+  msgEl.innerHTML="";
+  const title=document.createElement("div");
+  title.style.marginBottom="10px";
+  title.style.fontWeight="bold";
+  title.textContent=mode==="load"?t("選擇讀取欄位","Select Load Slot"):t("選擇存檔欄位","Select Save Slot");
+  msgEl.appendChild(title);
   for(let i=1;i<=5;i++){
     const raw=localStorage.getItem("pixel_rpg_slot"+i);
     let info=t("空欄位","Empty");
-    if(raw){try{const d=JSON.parse(raw);info=`${d.name||"?"} Lv.${d.level||1} Day${d.day||1}`;}catch(e){}}
-    h+=`<div class="list-item"><span>Slot ${i}: ${info}</span><div>`;
+    if(raw){try{const d=JSON.parse(raw);info=`${d.name||"?"} Lv.${d.level||1} Day ${d.day||1}`;}catch(e){}}
+    const row=document.createElement("div");
+    row.className="list-item";
+    row.style.marginBottom="6px";
+    const span=document.createElement("span");
+    span.textContent="Slot "+i+": "+info;
+    row.appendChild(span);
+    const btns=document.createElement("div");
     if(mode==="load"){
-      h+=`<button class="btn small" onclick="loadSlot(${i})">${t("讀取","Load")}</button>`;
-      if(raw)h+=`<button class="btn small danger" onclick="deleteSlot(${i})">${t("刪除","Delete")}</button>`;
+      const b=document.createElement("button");
+      b.className="btn small"; b.textContent=t("讀取","Load");
+      b.onclick=()=>{ov.classList.remove("show");loadSlot(i);};
+      btns.appendChild(b);
+      if(raw){
+        const dbtn=document.createElement("button");
+        dbtn.className="btn small danger"; dbtn.textContent=t("刪除","Delete");
+        dbtn.onclick=()=>{ov.classList.remove("show");deleteSlot(i);};
+        btns.appendChild(dbtn);
+      }
     }else{
-      h+=`<button class="btn small" onclick="saveToSlot(${i})">${t("存檔","Save")}</button>`;
+      const b=document.createElement("button");
+      b.className="btn small"; b.textContent=t("存檔","Save");
+      b.onclick=()=>{ov.classList.remove("show");saveToSlot(i);};
+      btns.appendChild(b);
     }
-    h+=`</div></div>`;
+    row.appendChild(btns);
+    msgEl.appendChild(row);
   }
-  h+=`<button class="btn" onclick="document.getElementById('save-slots').style.display='none'">${t("取消","Cancel")}</button>`;
-  el.innerHTML=h;
+  act.innerHTML="";
+  const cancel=document.createElement("button");
+  cancel.className="btn"; cancel.textContent=t("取消","Cancel");
+  cancel.onclick=()=>ov.classList.remove("show");
+  act.appendChild(cancel);
+  window._modalCancelable=true;
+  window._modalCb=null;
+  ov.classList.add("show");
 }
 function loadSlot(i){
   const raw=localStorage.getItem("pixel_rpg_slot"+i);
@@ -634,16 +720,18 @@ function loadSlot(i){
   if(!availableQuests.length)generateAvailableQuests();
   if(G.storyStage==null)G.storyStage=0;if(!G.storyFlags)G.storyFlags={};
   updateUI();renderMap();checkTile();renderLog();updateObjective();
-  document.getElementById("save-slots").style.display="none";
+  const ss=document.getElementById("save-slots");if(ss)ss.style.display="none";
+  const ov=document.getElementById("modal-overlay");if(ov)ov.classList.remove("show");
   showScreen("game-screen");
 }
 function saveToSlot(i){
-  if(!G)return;
+  if(!G){uiAlert(t("沒有進行中的遊戲","No active game"));return;}
   currentSlot=i;
   G.eventLog=eventLog.slice(-20);G.availableQuests=availableQuests;
   localStorage.setItem("pixel_rpg_slot"+i,JSON.stringify(G));
+  const el=document.getElementById("save-slots"); if(el)el.style.display="none";
+  const ov=document.getElementById("modal-overlay"); if(ov)ov.classList.remove("show");
   uiAlert(t("已存檔至欄位 ","Saved to slot ")+i);
-  document.getElementById("save-slots").style.display="none";
 }
 function deleteSlot(i){
   uiConfirm(t("確定刪除欄位 ","Delete slot ")+i+"?").then(ok=>{
@@ -853,7 +941,17 @@ function startBossBattle(){
   const sc=1+G.day*0.025+G.level*0.025;
   let hp=Math.floor(280*sc*DIFF[G.diff].monMul);
   hp=Math.max(hp,DIFF[G.diff].bossMin);
-  startBattleWith({name:"魔王",icon:"👿",hp,atk:Math.floor(28*sc),spd:9,rarity:4,maxHp:hp,isBoss:true,berserk:false});
+  const atk=Math.floor(28*sc);
+  const first=!G.heroTitle;
+  const intro = first
+    ? t("【魔王戰】\n\n地面裂開，硫磺與紅光湧出。\n一個巨大的身影從深淵抬起頭——\n「又一個送死的勇者嗎？」\n\n戰鬥開始！","[Demon Lord]\n\nThe ground splits. Sulfur and red light pour out.\nA colossal silhouette rises from the abyss—\n\"Another hero rushing to die?\"\n\nBattle begins!")
+    : t("【魔王再臨】\n\n熟悉的紅光再次燃起。\n「你……又來了。」\n魔王的聲音比上次更沉。\n\n再戰！","[Demon Lord Returns]\n\nThe familiar red glow ignites again.\n\"You... returned.\"\nHis voice is heavier than before.\n\nFight again!");
+  uiAlert(intro).then(()=>{
+    startBattleWith({name:"魔王",icon:"👿",hp,atk,spd:9,rarity:4,maxHp:hp,isBoss:true,berserk:false});
+    addBLog(t("—— 魔王戰 ——","— DEMON LORD BATTLE —"));
+    if(first) addBLog(t("這是決定你能否成為勇者的一戰。","This fight decides if you become a Hero."));
+    else addBLog(t("魔王記得你的味道。","The Demon Lord remembers your scent."));
+  });
 }
 function startBattle(k){const ev=G.mapEvents[k];startBattleWith({...ev,maxHp:ev.hp},k);}
 function startBattleWith(enemy,key){
@@ -869,6 +967,7 @@ function startBattleWith(enemy,key){
   updateBattleUI();
   addBLog(`${enemy.icon} ${tn(enemy.name)} `+t("出現！","appears!"));
   if(enemy.elite)addBLog(t("⚠️ 這是精英個體！","⚠️ Elite foe!"));
+  if(enemy.isBoss){addBLog(t("💀 魔王氣場壓迫著你……","💀 The Demon Lord's aura presses down..."));battle.bossPhase=1;}
   if(!G.activePet&&G.pets&&G.pets.some(p=>p.hp>0))addBLog(t("（你有寵物可出戰，可在行動中切換）","(You have pets — switch them in during your turn)"));
   nextActor();
 }
