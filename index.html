@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Pixel Adventure RPG v16 (大更新版)</title>
+<title>Pixel Adventure RPG v17 (完整度提升版)</title>
 <style>
 :root{--bg:#0f0f0f;--panel:#1a1a1a;--border:#444;--accent:#00e6b8;--gold:#ffcc00;--danger:#ff5555;--text:#eee}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -45,7 +45,7 @@ button:active{background:#444}button:disabled{opacity:.45}
 
 <div id="title-screen" class="screen active">
   <h1>🧙 像素冒險 RPG</h1>
-  <div class="subtitle">v16 · 大更新版（改名 + 隨機事件 + 天氣 + 成就 + 寵物技能）</div>
+  <div class="subtitle">v17 · 完整度提升版（連擊 + 更多怪物 + 成就獎勵 + 更好反饋）</div>
   <button class="menu-btn" onclick="startNewGame()">▶ 開始遊戲</button>
   <button class="menu-btn" onclick="continueGame()">📂 繼續遊戲</button>
   <button class="menu-btn" onclick="showScreen('setting-screen')">⚙️ 設定</button>
@@ -161,7 +161,7 @@ assassin:{hp:5,atk:6,def:0,mp:15,ap:1,spd:14,crit:25,skills:[["背刺","高暴�
 const RARITY=["一般","優良","稀有","史詩","傳說"];
 const RARITY_C=["gray","green","purple","gold","red"];
 const FAME_T=[{min:0,t:"新手冒險者"},{min:100,t:"見習冒險者"},{min:300,t:"正式冒險者"},{min:600,t:"精英冒險者"},{min:1000,t:"傳奇冒險者"}];
-const MONSTERS=[{name:"野狼",icon:"🐺",hp:35,atk:9,spd:10,r:1},{name:"史萊姆",icon:"🟢",hp:25,atk:6,spd:6,r:1},{name:"骷髏",icon:"💀",hp:45,atk:12,spd:7,r:2},{name:"蝙蝠",icon:"🦇",hp:20,atk:8,spd:13,r:1},{name:"哥布林",icon:"👺",hp:40,atk:11,spd:9,r:2},{name:"毒蛇",icon:"🐍",hp:28,atk:14,spd:11,r:2},{name:"石魔",icon:"🗿",hp:60,atk:10,spd:5,r:2},{name:"幽靈",icon:"👻",hp:30,atk:13,spd:12,r:3}];
+const MONSTERS=[{name:"野狼",icon:"🐺",hp:35,atk:9,spd:10,r:1},{name:"史萊姆",icon:"🟢",hp:25,atk:6,spd:6,r:1},{name:"骷髏",icon:"💀",hp:45,atk:12,spd:7,r:2},{name:"蝙蝠",icon:"🦇",hp:20,atk:8,spd:13,r:1},{name:"哥布林",icon:"👺",hp:40,atk:11,spd:9,r:2},{name:"毒蛇",icon:"🐍",hp:28,atk:14,spd:11,r:2},{name:"石魔",icon:"🗿",hp:60,atk:10,spd:5,r:2},{name:"幽靈",icon:"👻",hp:30,atk:13,spd:12,r:3},{name:"火焰史萊姆",icon:"🔴",hp:40,atk:15,spd:7,r:2},{name:"暗影狼",icon:"🌑",hp:50,atk:16,spd:12,r:3},{name:"鐵甲哥布林",icon:"🛡️",hp:70,atk:12,spd:6,r:3},{name:"亡靈騎士",icon:"⚔️",hp:90,atk:20,spd:8,r:4}];
 
 let G=null,battle=null,bagTab="cons",eventLog=[],availableQuests=[];
 
@@ -312,7 +312,7 @@ function startBossBattle(){
 function startBattle(k){const ev=G.mapEvents[k];startBattleWith({...ev,maxHp:ev.hp},k);}
 function startBattleWith(enemy,key){
   enemy.maxHp=enemy.maxHp||enemy.hp;
-  battle={enemy,key,playerDef:false,log:[],order:[],idx:0};
+  battle={enemy,key,playerDef:false,log:[],order:[],idx:0};G.combo=0;
   const actors=[{type:"player",spd:totalSpd()}];
   if(G.activePet&&G.activePet.hp>0)actors.push({type:"pet",spd:G.activePet.spd||8});
   actors.push({type:"enemy",spd:enemy.spd});
@@ -356,9 +356,15 @@ function renderPlayerActions(){
   document.getElementById("battle-actions").innerHTML=h;
 }
 function pAct(a,skillIdx){
-  if(a==="attack"){let d=totalAtk();if(Math.random()*100<G.crit){d=Math.floor(d*1.7);addBLog("暴擊！");}battle.enemy.hp-=d;addBLog(`你造成 ${d} 傷害`);}
-  else if(a==="defend"){battle.playerDef=true;addBLog("防禦");}
-  else if(a==="skill"){const sk=G.skills[skillIdx||0];if(!sk){addBLog("無技能");return;}if(G.mp<sk.mp){addBLog("MP不足");return;}G.mp-=sk.mp;const d=totalAtk()+10+(sk.enhance||0)*5;battle.enemy.hp-=d;addBLog(`使用【${sk.name}】造成 ${d}`);}
+  if(a==="attack"){
+    G.combo=(G.combo||0)+1;
+    let d=totalAtk() + Math.floor((G.combo-1)*3);
+    if(Math.random()*100<G.crit){d=Math.floor(d*1.7);addBLog("暴擊！");}
+    battle.enemy.hp-=d;
+    addBLog(`你造成 ${d} 傷害（連擊x${G.combo}）`);
+  }
+  else if(a==="defend"){battle.playerDef=true;G.combo=0;addBLog("防禦");}
+  else if(a==="skill"){const sk=G.skills[skillIdx||0];if(!sk){addBLog("無技能");return;}if(G.mp<sk.mp){addBLog("MP不足");return;}G.mp-=sk.mp;G.combo=(G.combo||0)+1;const d=totalAtk()+10+(sk.enhance||0)*5+Math.floor((G.combo-1)*2);battle.enemy.hp-=d;addBLog(`使用【${sk.name}】造成 ${d}（連擊x${G.combo}）`);}
   else if(a==="item"){showItemMenu();return;}
   else if(a==="switch"){switchPetMenu();return;}
   else if(a==="capture"){tryCapture();return;}
@@ -371,6 +377,7 @@ function petAct(){
   updateBattleUI();if(battle.enemy.hp<=0){endBattle(true);return;}nextActor();
 }
 function enemyAct(){
+  G.combo=0;
   let target=G;
   if(G.activePet&&G.activePet.hp>0&&Math.random()<0.45)target=G.activePet;
   let d=battle.enemy.atk;
@@ -394,6 +401,12 @@ function endBattle(win){
     addLog(`戰鬥勝利 EXP+${exp} 金幣+${gold}`);
     updateQuestProgress("Hunt",1);
     while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.4);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;addLog(`升級！Lv.${G.level}`);}
+    // 成就檢查
+    if(!G.achievements)G.achievements={};
+    if(!G.achievements.firstKill){G.achievements.firstKill=true;G.gold+=50;G.fame+=10;addLog("🏆 成就達成：初戰告捷！+50G +10名氣");}
+    if(G.level>=10 && !G.achievements.reach10){G.achievements.reach10=true;G.gold+=100;G.permanentAtk+=3;addLog("🏆 成就達成：等級10！+100G 永久攻擊+3");}
+    if(G.level>=20 && !G.achievements.reach20){G.achievements.reach20=true;G.gold+=200;G.permanentAtk+=5;addLog("🏆 成就達成：等級20！+200G 永久攻擊+5");}
+    if(G.pets && G.pets.length>=3 && !G.achievements.pet3){G.achievements.pet3=true;G.inv.skillStone=(G.inv.skillStone||0)+3;addLog("🏆 成就達成：擁有3隻寵物！+3強化石");}
     if(battle.key)delete G.mapEvents[battle.key];
     if(G.activePet){G.activePet.exp=(G.activePet.exp||0)+12;while(G.activePet.exp>=(G.activePet.maxExp||30)){G.activePet.exp-=G.activePet.maxExp||30;G.activePet.level++;G.activePet.maxExp=Math.floor((G.activePet.maxExp||30)*1.3);G.activePet.atk+=2;G.activePet.maxHp+=6;G.activePet.hp=G.activePet.maxHp;addLog(`寵物 ${G.activePet.name} 升級！`);}}
     
