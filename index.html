@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Pixel Adventure RPG v27</title>
+<title>Pixel Adventure RPG v28</title>
 <style>
 :root{--bg:#0f0f0f;--panel:#1a1a1a;--border:#444;--accent:#00e6b8;--gold:#ffcc00;--danger:#ff5555;--text:#eee}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -46,7 +46,7 @@ button:active{background:#444}button:disabled{opacity:.45}
 
 <div id="title-screen" class="screen active">
   <h1>🧙 像素冒險 RPG</h1>
-  <div class="subtitle">v27 · 最終打磨版（圖示 + 中文名 + 魔王平衡）</div>
+  <div class="subtitle">v28 · 採集無限 + 傳說掉落 + 強化無上限 + AP成長</div>
   <button class="menu-btn" onclick="startNewGame()">▶ 開始遊戲 / New Game</button>
   <button class="menu-btn" onclick="showSaveSlots('load')">📂 讀取存檔 / Load</button>
   <button class="menu-btn" onclick="showScreen('setting-screen')">⚙️ 設定 / Settings</button>
@@ -347,7 +347,7 @@ function refreshDaily(){
 
 function move(dx,dy){if(G.stamina<=0){nextDay();return;}if(G.ap<=0){dialogue("行動點不足");return;}const nx=G.x+dx,ny=G.y+dy;if(nx<0||nx>4||ny<0||ny>4)return;G.x=nx;G.y=ny;G.stamina--;G.ap--;renderMap();checkTile();updateUI();saveGame();if(G.stamina<=0){dialogue("體力耗盡");setTimeout(nextDay,600);}}
 function forceNextDay(){if(confirm("結束今日？"))nextDay();}
-function nextDay(){G.day++;if(G.mode==="normal"&&G.day>300){dialogue("300日已過");return;}G.stamina=G.maxStamina;G.maxAp=10+Math.floor(G.level/10)+(JOBS[G.job].ap||0);G.ap=G.maxAp;G.mp=G.maxMp;refreshDaily();
+function nextDay(){G.day++;if(G.mode==="normal"&&G.day>300){dialogue("300日已過");return;}G.stamina=G.maxStamina;G.ap=G.maxAp;G.mp=G.maxMp;refreshDaily();
   // 隨機小劇情
   const stories=["你夢到遠方有一座發光的塔。","村民傳說來了一位神秘旅人。","今天風特別大，感覺有大事發生。","你感覺體內力量又增強了一點。","森林深處傳來奇怪的聲音。","天空出現罕見的雙彩虹。"];
   if(Math.random()<0.35){const s=stories[Math.floor(Math.random()*stories.length)];addLog(`📜 ${s}`);}
@@ -373,8 +373,8 @@ function checkTile(){
 }
 function dialogue(t){document.getElementById("dialogue").textContent=t;}
 
-function gather(k){if(G.gatherCount>=6){dialogue("今日採集上限");return;}if(G.stamina<1||G.ap<1)return;G.stamina--;G.ap--;G.gatherCount++;const ev=G.mapEvents[k];if(!G.inv[ev.res])G.inv[ev.res]={};G.inv[ev.res][ev.rarity]=(G.inv[ev.res][ev.rarity]||0)+1;addLog(`採集到 ${ev.res}（${RARITY[ev.rarity]}）`);const gexp=6+Math.floor(Math.random()*5);G.exp+=gexp;addLog(`採集獲得 EXP+${gexp}`);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.4);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;addLog(`升級！Lv.${G.level}`);}if(ev.res==="ore"&&Math.random()<0.08){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog("採礦幸運獲得強化石！");}updateQuestProgress("Gather",1);delete G.mapEvents[k];updateUI();saveGame();checkTile();}
-function gatherFixed(type){if(G.gatherCount>=6){dialogue("今日採集上限");return;}if(G.stamina<1||G.ap<1)return;G.stamina--;G.ap--;G.gatherCount++;const map={mine:"ore",herb:"herb",wood:"wood"};const res=map[type],rar=Math.random()<0.7?0:1;if(!G.inv[res])G.inv[res]={};G.inv[res][rar]=(G.inv[res][rar]||0)+1;addLog(`採集到 ${res}（${RARITY[rar]}）`);const gexp=6+Math.floor(Math.random()*5);G.exp+=gexp;addLog(`採集獲得 EXP+${gexp}`);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.4);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;addLog(`升級！Lv.${G.level}`);}if(type==="mine"&&Math.random()<0.08){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog("採礦幸運獲得強化石！");}updateQuestProgress("Gather",1);updateUI();saveGame();}
+function gather(k){if(G.stamina<1||G.ap<1)return;G.stamina--;G.ap--;const ev=G.mapEvents[k];if(!G.inv[ev.res])G.inv[ev.res]={};const rar=Math.random()<0.55?0:(Math.random()<0.65?1:(Math.random()<0.65?2:(Math.random()<0.55?3:4)));G.inv[ev.res][rar]=(G.inv[ev.res][rar]||0)+1;addLog(`採集到 ${ev.res}（${RARITY[rar]}）`);const gexp=6+Math.floor(Math.random()*5);G.exp+=gexp;addLog(`採集獲得 EXP+${gexp}`);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.4);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(`等級${G.level}！AP上限+1`);}addLog(`升級！Lv.${G.level}`);}if(ev.res==="ore"&&Math.random()<0.08){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog("採礦幸運獲得強化石！");}updateQuestProgress("Gather",1);delete G.mapEvents[k];updateUI();saveGame();checkTile();}
+function gatherFixed(type){if(G.stamina<1||G.ap<1)return;G.stamina--;G.ap--;const map={mine:"ore",herb:"herb",wood:"wood"};const res=map[type];const rar=Math.random()<0.55?0:(Math.random()<0.65?1:(Math.random()<0.65?2:(Math.random()<0.55?3:4)));if(!G.inv[res])G.inv[res]={};G.inv[res][rar]=(G.inv[res][rar]||0)+1;addLog(`採集到 ${res}（${RARITY[rar]}）`);const gexp=6+Math.floor(Math.random()*5);G.exp+=gexp;addLog(`採集獲得 EXP+${gexp}`);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.4);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(`等級${G.level}！AP上限+1`);}addLog(`升級！Lv.${G.level}`);}if(type==="mine"&&Math.random()<0.08){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog("採礦幸運獲得強化石！");}updateQuestProgress("Gather",1);updateUI();saveGame();}
 function rest(){G.hp=G.maxHp;G.mp=G.maxMp;nextDay();addLog("休息完畢");}
 
 /* ========== 戰鬥（含魔王狂暴） ========== */
@@ -477,7 +477,7 @@ function endBattle(win){
     G.exp+=exp;G.gold+=gold;G.fame+=3;
     addLog(`戰鬥勝利 EXP+${exp} 金幣+${gold}`);
     updateQuestProgress("Hunt",1);
-    while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.4);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;addLog(`升級！Lv.${G.level}`);}
+    while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.4);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(`等級${G.level}！AP上限+1`);}addLog(`升級！Lv.${G.level}`);}
     // 成就檢查
     if(!G.achievements)G.achievements={};
     if(!G.achievements.firstKill){G.achievements.firstKill=true;G.gold+=50;G.fame+=10;addLog("🏆 成就達成：初戰告捷！+50G +10名氣");}
@@ -800,9 +800,8 @@ function enhanceEquip(slot){
   if(!e)return;
   if((G.inv.skillStone||0)<1){alert("強化石不足");return;}
   const cur=e.enhance||0;
-  if(cur>=10){alert("已達最高強化+10");return;}
   G.inv.skillStone--;
-  const rate=Math.max(0.25,0.9-cur*0.08);
+  const rate=Math.max(0.15,0.85-cur*0.04);
   if(Math.random()<rate){
     e.enhance=cur+1;
     if(e.atk)e.atk+=2+Math.floor(e.rarity/2);
