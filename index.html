@@ -241,6 +241,41 @@ body{padding:6px;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));min-
 .flash-hit #e-bar{filter:brightness(1.8)}
 .popup-float{position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);color:#ffcc00;font-weight:bold;font-size:18px;pointer-events:none;z-index:9998;text-shadow:0 0 6px #000;animation:floatUp .8s ease forwards}
 @keyframes floatUp{0%{opacity:1;transform:translate(-50%,-50%)}100%{opacity:0;transform:translate(-50%,-90%)}}
+
+.boss-cinema{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;padding:16px;animation:cinemaIn .4s ease}
+@keyframes cinemaIn{from{opacity:0}to{opacity:1}}
+.boss-cinema-inner{max-width:420px;width:100%;text-align:center;color:#eee}
+.boss-cinema-title{font-size:22px;color:#ffcc00;margin-bottom:10px;text-shadow:0 0 16px rgba(255,180,0,.5);animation:titlePulse 1.2s ease infinite alternate}
+@keyframes titlePulse{from{transform:scale(1)}to{transform:scale(1.04)}}
+.boss-cinema-art{font-size:48px;margin:12px 0;animation:bossFall 1s ease}
+@keyframes bossFall{0%{transform:translateY(-20px) scale(1.2);opacity:0.2;filter:brightness(2)}60%{transform:translateY(4px) scale(1);opacity:1}100%{transform:translateY(0)}}
+.boss-cinema-text{font-size:13px;line-height:1.55;white-space:pre-wrap;min-height:90px;text-align:left;background:#151515;border:1px solid #555;border-radius:8px;padding:12px;margin:10px 0}
+.boss-cinema-flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:10001}
+.boss-cinema-flash.on{animation:flashBang .5s ease}
+@keyframes flashBang{0%{opacity:.85}100%{opacity:0}}
+.boss-cinema .btn{width:100%;text-align:center;margin-top:8px}
+
+.lb-overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:10050;display:none;align-items:center;justify-content:center;padding:16px}
+.lb-overlay.show{display:flex}
+.lb-modal{background:linear-gradient(180deg,#141414 0%,#0d0d0d 100%);border:1px solid #333;border-radius:14px;width:100%;max-width:400px;max-height:min(82vh,560px);display:flex;flex-direction:column;box-shadow:0 16px 48px rgba(0,0,0,.65),0 0 0 1px rgba(255,200,80,.08);overflow:hidden}
+.lb-header{padding:14px 16px 10px;border-bottom:1px solid #2a2a2a;text-align:center}
+.lb-header h3{color:var(--gold);font-size:16px;margin:0 0 4px}
+.lb-header .lb-sub{color:#888;font-size:11px}
+.lb-tabs{display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid #222;background:#101010}
+.lb-tab{flex:1;padding:8px 6px;border-radius:8px;border:1px solid #333;background:#1a1a1a;color:#aaa;font-size:12px;text-align:center;cursor:pointer}
+.lb-tab.active{background:#2a2410;border-color:#a68620;color:var(--gold);font-weight:bold}
+.lb-body{flex:1;overflow-y:auto;padding:10px 12px;-webkit-overflow-scrolling:touch}
+.lb-row{display:grid;grid-template-columns:36px 1fr auto;gap:8px;align-items:center;padding:10px 10px;background:#181818;border:1px solid #2c2c2c;border-radius:8px;margin-bottom:6px;font-size:12px}
+.lb-row:nth-child(1){border-color:#c9a227;background:linear-gradient(90deg,#2a2208,#181818)}
+.lb-row:nth-child(2){border-color:#7a7a8a;background:linear-gradient(90deg,#1e1e28,#181818)}
+.lb-row:nth-child(3){border-color:#8a5a28;background:linear-gradient(90deg,#241808,#181818)}
+.lb-rank{color:var(--gold);font-weight:bold;font-size:14px}
+.lb-name{color:#eee;font-weight:bold}
+.lb-meta{color:#888;font-size:10px;margin-top:2px}
+.lb-score{color:var(--accent);font-weight:bold;text-align:right;white-space:nowrap}
+.lb-empty{color:#777;text-align:center;padding:28px 12px;font-size:12px;line-height:1.5}
+.lb-footer{padding:10px 12px 12px;border-top:1px solid #222;background:#101010}
+.lb-footer .btn{margin:0;text-align:center}
 </style>
 </head>
 <body>
@@ -250,6 +285,7 @@ body{padding:6px;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));min-
   <div class="subtitle">Bond & Conquer — Capture partners. Build bonds. Slay the Demon Lord.</div>
   <button class="menu-btn" onclick="startNewGame()">▶ New Game</button>
   <button class="menu-btn" onclick="showSaveSlots('load')">📂 Load</button>
+  <button class="menu-btn" onclick="toggleLeaderboard()">🏆 Leaderboard</button>
   <button class="menu-btn" onclick="showScreen('setting-screen')">⚙️ Settings</button>
   <div id="save-slots" style="display:none;margin-top:10px"></div>
 </div>
@@ -263,8 +299,8 @@ body{padding:6px;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));min-
 
 <div id="mode-screen" class="screen">
   <h2 class="text-center mb-6">Select Mode</h2>
-  <button class="menu-btn" onclick="selectMode('normal')">Normal Mode (300 Days)</button>
-  <button class="menu-btn" onclick="selectMode('endless')">Endless Mode</button>
+  <button class="menu-btn" onclick="selectMode('normal')">Normal Mode (300 Days)<br><span class="small">Defeat Demon Lord to clear & rank</span></button>
+  <button class="menu-btn" onclick="selectMode('endless')">Endless Mode<br><span class="small">Keep playing after the Demon Lord</span></button>
   <button class="btn" onclick="showScreen('name-screen')">← Back</button>
 </div>
 <div id="diff-screen" class="screen">
@@ -366,6 +402,28 @@ body{padding:6px;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));min-
 </div>
 
 
+<div id="lb-overlay" class="lb-overlay" onclick="if(event.target===this)closeLeaderboard()">
+  <div class="lb-modal" onclick="event.stopPropagation()">
+    <div class="lb-header">
+      <h3 id="lb-title">🏆 Leaderboard</h3>
+      <div class="lb-sub" id="lb-sub"></div>
+    </div>
+    <div class="lb-tabs" id="lb-tabs"></div>
+    <div class="lb-body" id="lb-body"></div>
+    <div class="lb-footer">
+      <button class="btn" id="lb-close-btn" onclick="closeLeaderboard()">Close</button>
+    </div>
+  </div>
+</div>
+<div id="boss-cinema" class="boss-cinema" style="display:none">
+  <div class="boss-cinema-inner">
+    <div class="boss-cinema-title" id="bc-title"></div>
+    <div class="boss-cinema-art" id="bc-art">👿</div>
+    <div class="boss-cinema-text" id="bc-text"></div>
+    <button class="btn" id="bc-next" onclick="bossCinemaNext()">▶</button>
+  </div>
+</div>
+<div class="boss-cinema-flash" id="bc-flash"></div>
 <div id="modal-overlay" class="modal-overlay" onclick="if(event.target===this&&window._modalCancelable)modalCancel()">
   <div class="modal-box">
     <div class="modal-msg" id="modal-msg"></div>
@@ -374,7 +432,11 @@ body{padding:6px;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));min-
 </div>
 
 <script>
-const DIFF={easy:{stamina:22,monMul:0.75,bossMin:180},normal:{stamina:18,monMul:1,bossMin:280},hard:{stamina:12,monMul:1.2,bossMin:350}};
+const DIFF={
+easy:{stamina:22,monMul:0.75,bossMin:320,bossAtk:22,bossSpd:11,bossGateLv:5,bossGateDay:5},
+normal:{stamina:18,monMul:1,bossMin:480,bossAtk:30,bossSpd:12,bossGateLv:7,bossGateDay:8},
+hard:{stamina:12,monMul:1.35,bossMin:720,bossAtk:42,bossSpd:13,bossGateLv:9,bossGateDay:12}
+};
 const JOBS={
 warrior:{hp:30,atk:2,def:5,mp:10,ap:0,spd:8,crit:5,skills:[["重擊","強力攻擊",12],["堅守","提升防禦",8]]},
 mage:{hp:0,atk:8,def:0,mp:40,ap:0,spd:7,crit:8,skills:[["火球","火焰傷害",15],["冰霜","減速",12]]},
@@ -443,6 +505,7 @@ function selectJob(j){
 }
 function confirmSkill(idx){
   G=defaultGame(window._mode,window._diff,window._job);
+  G.name=window._playerName||t("冒險者","Adventurer");
   const sk=JOBS[window._job].skills[idx];
   G.skills.push({name:sk[0],desc:sk[1],mp:sk[2],enhance:0});
   generateAvailableQuests();
@@ -462,8 +525,7 @@ function confirmSkill(idx){
   addLog(t("💡 四周已有資源點，先走一步採集看看！","💡 Resource nodes are nearby — take a step and gather!"));
   saveGame();updateUI();renderMap();checkTile();updateObjective();
   showScreen("game-screen");
-  dialogue(t("歡迎，冒險者。先採集附近的資源，感受成長的節奏。","Welcome, adventurer. Gather nearby resources and feel the growth."));
-  setTimeout(()=>{uiAlert(t("開局指引\n\n1) 用方向鍵移動\n2) 踩到資源就按「採集」\n3) 體力用完會進入下一日\n\n目標：先升級到 3 級","Quick Start\n\n1) Move with arrows\n2) Gather when you step on resources\n3) Day advances when stamina runs out\n\nGoal: Reach Lv.3 first"));},200);
+  setTimeout(()=>playOpeningCinema(), 250);
 }
 let currentSlot=1;
 let LANG=localStorage.getItem("pixel_rpg_lang")||"en";
@@ -660,7 +722,7 @@ function uiConfirm(msg){
 const NAMES={
 "野狼":"Wolf","史萊姆":"Slime","骷髏":"Skeleton","蝙蝠":"Bat","哥布林":"Goblin","毒蛇":"Snake",
 "石魔":"Golem","幽靈":"Ghost","火焰史萊姆":"Fire Slime","暗影狼":"Shadow Wolf","鐵甲哥布林":"Armored Goblin","亡靈騎士":"Undead Knight",
-"魔王":"Demon Lord","魔王劍":"Demon Blade","勇者":"Hero",
+"魔王":"Demon Lord","魔王劍":"Demon Blade","勇者":"Hero","遺跡守護者":"Ruins Guardian","遠古巨龍":"Ancient Dragon","龍蛋":"Dragon Egg","幼龍":"Baby Dragon","龍鱗碎片":"Dragon Scale Shard","遺跡繼承者":"Ruins Heir",
 "小魚":"Small Fish","鯉魚":"Carp","鱸魚":"Bass","金魚":"Goldfish","傳說魚":"Legendary Fish",
 "回血藥":"HP Potion","回魔藥":"MP Potion","回MP藥":"MP Potion","回復藥":"HP Potion","食物":"Food","捕捉球":"Capture Ball",
 "復活藥":"Revive","加攻藥":"ATK Potion","加防藥":"DEF Potion","回城卷":"Town Scroll","強化石":"Enhance Stone",
@@ -834,9 +896,10 @@ function applyLanguage(){
   const sub=document.querySelector("#title-screen .subtitle");
   if(sub)sub.textContent=t("v30 · 圖鑑分類 + 解鎖加成","Bond & Conquer — Capture partners. Build bonds. Slay the Demon Lord.");
   const tbs=document.querySelectorAll("#title-screen .menu-btn");
-  if(tbs[0])tbs[0].textContent=t("▶ 開始遊戲 / New Game","▶ New Game");
-  if(tbs[1])tbs[1].textContent=t("📂 讀取存檔 / Load","📂 Load");
-  if(tbs[2])tbs[2].textContent=t("⚙️ 設定 / Settings","⚙️ Settings");
+  if(tbs[0])tbs[0].textContent=t("▶ 開始遊戲","▶ New Game");
+  if(tbs[1])tbs[1].textContent=t("📂 讀取存檔","📂 Load");
+  if(tbs[2])tbs[2].textContent=t("🏆 排行榜","🏆 Leaderboard");
+  if(tbs[3])tbs[3].textContent=t("⚙️ 設定","⚙️ Settings");
   // Name screen
   const ns=document.querySelector("#name-screen h2");
   if(ns)ns.textContent=t("輸入你的冒險者名字","Enter Adventurer Name");
@@ -849,8 +912,8 @@ function applyLanguage(){
   const ms=document.querySelector("#mode-screen h2");
   if(ms)ms.textContent=t("選擇模式","Select Mode");
   const mbtns=document.querySelectorAll("#mode-screen button");
-  if(mbtns[0])mbtns[0].textContent=t("正常模式（300日）","Normal Mode (300 Days)");
-  if(mbtns[1])mbtns[1].textContent=t("無盡模式","Endless Mode");
+  if(mbtns[0])mbtns[0].innerHTML=t("正常模式（300日）<br><span class=\"small\">打贏魔王即通關並上榜","Normal Mode (300 Days)<br><span class=\"small\">Clear by beating Demon Lord & rank");
+  if(mbtns[1])mbtns[1].innerHTML=t("無盡模式<br><span class=\"small\">打贏魔王後仍可繼續","Endless Mode<br><span class=\"small\">Continue after Demon Lord");
   if(mbtns[2])mbtns[2].textContent=t("← 返回","← Back");
   // Diff
   const ds=document.querySelector("#diff-screen h2");
@@ -1069,6 +1132,7 @@ function loadSlot(i){
   const raw=localStorage.getItem("pixel_rpg_slot"+i);
   if(!raw){uiAlert(t("此欄位沒有存檔","Empty slot"));return;}
   G=JSON.parse(raw);currentSlot=i;
+  if(G.cleared&&G.mode==="normal"){uiAlert(t("此存檔已通關（正常模式）。請開新遊戲或讀取其他欄位。","This save is already cleared (Normal). Start new or load another."));G=null;return;}
   eventLog=G.eventLog||[];availableQuests=G.availableQuests||[];
   if(!availableQuests.length)generateAvailableQuests();
   if(G.storyStage==null)G.storyStage=0;if(!G.storyFlags)G.storyFlags={};
@@ -1111,7 +1175,7 @@ function updateUI(){
   document.getElementById("ap").textContent=G.ap;document.getElementById("maxAp").textContent=G.maxAp;
   document.getElementById("exp").textContent=G.exp;document.getElementById("maxExp").textContent=G.maxExp;
   document.getElementById("rank").textContent=G.rank;document.getElementById("fame").textContent=G.fame;
-  document.getElementById("fameTitle").textContent=fameTitleOf(G.fame,G.heroTitle);
+  document.getElementById("fameTitle").textContent=(G.ruinsTitle?G.ruinsTitle+" · ":"")+fameTitleOf(G.fame,G.heroTitle);
   advanceStory();
   if(document.getElementById("playerName"))document.getElementById("playerName").textContent=G.name||t("冒險者","Adventurer");
   if(document.getElementById("weather"))document.getElementById("weather").textContent=tn(G.weather||"晴天");
@@ -1305,7 +1369,11 @@ function checkTile(){
   else if(tile.type==="forest"){dialogue(t("迷霧森林","Misty Forest"));opt.innerHTML=`<button class="btn" onclick="startForestBattle()">${t("進入戰鬥","Enter Battle")}</button>`;}
   else if(tile.type==="boss"){
     if(G.day < G.bossRespawnDay){dialogue(t("魔王尚未復活（還需 ","Demon Lord not yet revived (need ")+(G.bossRespawnDay-G.day)+t(" 日）"," days)"));}
-    else{dialogue(t("魔王窟入口","Demon Lord's Lair"));opt.innerHTML=`<button class="btn" onclick="startBossBattle()">${t("挑戰魔王","Challenge Demon Lord")}</button>`;}
+    else{
+      const d=DIFF[G.diff]||DIFF.normal;
+      dialogue(t("魔王窟入口（建議 Lv.","Demon Lair (rec. Lv.")+(d.bossGateLv||7)+t(" / 第"," / Day ")+(d.bossGateDay||8)+t(" 日）"," )"));
+      opt.innerHTML=`<button class="btn" onclick="startBossBattle()">${t("挑戰魔王","Challenge Demon Lord")}</button>`;
+    }
   }
   else if(tile.type==="mine"||tile.type==="herb"||tile.type==="wood"){opt.innerHTML=`<button class="btn" onclick="gatherFixed('${tile.type}')">${t("採集","Gather")}</button>`;}
   else if(tile.type==="ruins"){showScreen("ruins-screen");}
@@ -1320,21 +1388,40 @@ function rest(){G.hp=G.maxHp;G.mp=G.maxMp;G.stamina=G.maxStamina;G.ap=G.maxAp;ad
 /* ========== 戰鬥（含魔王狂暴） ========== */
 function startForestBattle(){if(G.ap<1){dialogue(t("AP不足","Not enough AP"));return;}G.ap--;const m=MONSTERS[Math.floor(Math.random()*MONSTERS.length)];const mul=(0.9+Math.random()*0.35)*(1+G.day*0.018)*DIFF[G.diff].monMul;startBattleWith({name:m.name,icon:m.icon,hp:Math.floor(m.hp*mul),atk:Math.floor(m.atk*mul),spd:m.spd,rarity:m.r,maxHp:0});}
 function startBossBattle(){
-  const sc=1+G.day*0.025+G.level*0.025;
-  let hp=Math.floor(240*sc*DIFF[G.diff].monMul);
-  hp=Math.max(hp,Math.floor(DIFF[G.diff].bossMin*0.9));
-  if(G.level<8){hp=Math.floor(hp*0.85);}
-  const atk=Math.floor(24*sc*(G.level<8?0.9:1));
-  const first=!G.heroTitle;
-  const intro = first
-    ? t("【魔王戰】\n\n地面裂開，硫磺與紅光湧出。\n一個巨大的身影從深淵抬起頭——\n「又一個送死的勇者嗎？」\n\n戰鬥開始！","[Demon Lord]\n\nThe ground splits. Sulfur and red light pour out.\nA colossal silhouette rises from the abyss—\n\"Another hero rushing to die?\"\n\nBattle begins!")
-    : t("【魔王再臨】\n\n熟悉的紅光再次燃起。\n「你……又來了。」\n魔王的聲音比上次更沉。\n\n再戰！","[Demon Lord Returns]\n\nThe familiar red glow ignites again.\n\"You... returned.\"\nHis voice is heavier than before.\n\nFight again!");
-  sfxBoss();uiAlert(intro).then(()=>{
-    startBattleWith({name:"魔王",icon:"👿",hp,atk,spd:12,rarity:4,maxHp:hp,isBoss:true,berserk:false});
-    addBLog(t("—— 魔王戰 ——","— DEMON LORD BATTLE —"));
-    if(first) addBLog(t("這是決定你能否成為勇者的一戰。","This fight decides if you become a Hero."));
-    else addBLog(t("魔王記得你的味道。","The Demon Lord remembers your scent."));
-  });
+  const d=DIFF[G.diff]||DIFF.normal;
+  // Soft gate: under-level / too early day → heavy warning (still allow, but boss is brutal)
+  const under = (G.level<(d.bossGateLv||7)) || (G.day<(d.bossGateDay||8));
+  const go = ()=>{
+    // Scale primarily with day+level; early days no longer under-tuned
+    const sc=1+G.day*0.04+G.level*0.05+(G.heroLevel||0)*0.08;
+    let hp=Math.floor(320*sc*d.monMul);
+    hp=Math.max(hp, d.bossMin||480);
+    let atk=Math.floor((d.bossAtk||30)*sc);
+    const spd=d.bossSpd||12;
+    // Under-geared attempt: boss gets angrier (no more early nerf)
+    if(under){hp=Math.floor(hp*1.15);atk=Math.floor(atk*1.12);}
+    // Repeat clears slightly harder
+    if(G.heroTitle){hp=Math.floor(hp*1.1);atk=Math.floor(atk*1.08);}
+    const first=!G.heroTitle;
+    const intro = first
+      ? t("【魔王戰】\n\n地面裂開，硫磺與紅光湧出。\n一個巨大的身影從深淵抬起頭——\n「又一個送死的勇者嗎？」\n\n戰鬥開始！","[Demon Lord]\n\nThe ground splits. Sulfur and red light pour out.\nA colossal silhouette rises from the abyss—\n\"Another hero rushing to die?\"\n\nBattle begins!")
+      : t("【魔王再臨】\n\n熟悉的紅光再次燃起。\n「你……又來了。」\n魔王的聲音比上次更沉。\n\n再戰！","[Demon Lord Returns]\n\nThe familiar red glow ignites again.\n\"You... returned.\"\nHis voice is heavier than before.\n\nFight again!");
+    sfxBoss();
+    uiAlert(intro).then(()=>{
+      startBattleWith({name:"魔王",icon:"👿",hp,atk,spd,rarity:4,maxHp:hp,isBoss:true,berserk:false});
+      addBLog(t("—— 魔王戰 ——","— DEMON LORD BATTLE —"));
+      addBLog(t("魔王 HP ","Boss HP ")+hp+" | ATK "+atk+" | SPD "+spd);
+      if(first) addBLog(t("這是決定你能否成為勇者的一戰。","This fight decides if you become a Hero."));
+      else addBLog(t("魔王記得你的味道。","The Demon Lord remembers your scent."));
+    });
+  };
+  if(under){
+    uiConfirm(
+      t("警告：你可能尚未準備好。\n建議 Lv.","Warning: You may not be ready.\nRecommended Lv.")+
+      (d.bossGateLv||7)+t(" / 第 "," / Day ")+(d.bossGateDay||8)+
+      t(" 日後。\n仍要挑戰嗎？","+.\nChallenge anyway?")
+    ).then(ok=>{ if(ok) go(); });
+  }else go();
 }
 function startBattle(k){const ev=G.mapEvents[k];startBattleWith({...ev,maxHp:ev.hp},k);}
 function startBattleWith(enemy,key){
@@ -1375,9 +1462,10 @@ function nextActor(){
   if(G.hp<=0){addBLog(t("你被擊敗了……","You were defeated..."));endBattle(false);return;}
   if(battle.enemy.isBoss && !battle.enemy.berserk && battle.enemy.hp < battle.enemy.maxHp*0.5){
     battle.enemy.berserk=true;
-    battle.enemy.atk=Math.floor(battle.enemy.atk*1.8);
-    battle.enemy.spd=Math.floor(battle.enemy.spd*1.5);
+    battle.enemy.atk=Math.floor(battle.enemy.atk*2.0);
+    battle.enemy.spd=Math.floor(battle.enemy.spd*1.6);
     addBLog(t("🔥 魔王進入狂暴！攻擊與速度大幅提升！","🔥 Demon Lord enraged! ATK & SPD surge!"));
+    screenShake&&screenShake();
   }
   // Status ticks at round start for player turn candidates
   if(battle.dotTurns&&battle.dotTurns>0&&battle.dotDmg){
@@ -1575,10 +1663,10 @@ function tryCapture(){
   if((G.inv.capture||0)<=0){addBLog(t("沒有捕捉球","No capture balls"));return;}
   G.inv.capture--;
   let rate=0.34-battle.enemy.rarity*0.06;if(G.level<6)rate+=0.08;
-  if(battle.enemy.isBoss)rate=0.001;
+  if(battle.enemy.isBoss||battle.enemy.isRuinsGuardian)rate=0.001;
   rate+=(1-battle.enemy.hp/Math.max(1,battle.enemy.maxHp))*0.38;
   if(battle.enemy.elite)rate*=0.7;
-  if(battle.enemy.isBoss)rate=Math.min(rate,0.005);
+  if(battle.enemy.isBoss||battle.enemy.isRuinsGuardian)rate=Math.min(rate,0.005);
   if(Math.random()<rate){
     sfxCapture();addBLog(t("捕捉成功！","Capture success!"));
     const pet={
@@ -1611,6 +1699,319 @@ function salvageGear(item, silent){
   if(rar>=2 && Math.random()<0.35){G.inv.skillStone=(G.inv.skillStone||0)+1;}
   if(rar>=4){G.inv.skillStone=(G.inv.skillStone||0)+2;G.gold+=20;}
   if(!silent){/* caller logs */}
+}
+
+
+window._bossCinema = null;
+
+
+/* ===== Leaderboard (local) ===== */
+function getLeaderboard(){
+  try{return JSON.parse(localStorage.getItem("pixel_rpg_lb")||"[]");}catch(e){return [];}
+}
+function saveLeaderboard(list){
+  localStorage.setItem("pixel_rpg_lb", JSON.stringify(list.slice(0,20)));
+}
+function addLeaderboardEntry(entry){
+  // entry: {name, day, diff, mode, job, date}
+  const list=getLeaderboard();
+  list.push(entry);
+  // Sort: normal clears by day asc, then endless by day desc among endless? Keep all, sort normal first by day
+  list.sort((a,b)=>{
+    // Prefer lower day for normal clears
+    if(a.mode==="normal" && b.mode==="normal") return a.day-b.day;
+    if(a.mode==="normal") return -1;
+    if(b.mode==="normal") return 1;
+    return a.day-b.day;
+  });
+  saveLeaderboard(list);
+}
+window._lbTab = "normal";
+function jobLabel(job){
+  const map={warrior:t("戰士","Warrior"),mage:t("法師","Mage"),ranger:t("遊俠","Ranger"),assassin:t("刺客","Assassin")};
+  return map[job]||job||"";
+}
+function closeLeaderboard(){
+  const ov=document.getElementById("lb-overlay");
+  if(ov)ov.classList.remove("show");
+}
+function toggleLeaderboard(){
+  const ov=document.getElementById("lb-overlay");
+  if(!ov)return;
+  if(ov.classList.contains("show")){closeLeaderboard();return;}
+  window._lbTab = window._lbTab || "normal";
+  renderLeaderboard(window._lbTab);
+  ov.classList.add("show");
+  const ss=document.getElementById("save-slots");
+  if(ss)ss.style.display="none";
+}
+function setLbTab(tab){
+  window._lbTab=tab;
+  renderLeaderboard(tab);
+}
+function renderLeaderboard(tab){
+  tab = tab || window._lbTab || "normal";
+  window._lbTab = tab;
+  const title=document.getElementById("lb-title");
+  const sub=document.getElementById("lb-sub");
+  const tabs=document.getElementById("lb-tabs");
+  const body=document.getElementById("lb-body");
+  const closeBtn=document.getElementById("lb-close-btn");
+  if(title)title.textContent=t("🏆 通關排行榜","🏆 Clear Leaderboard");
+  if(closeBtn)closeBtn.textContent=t("關閉","Close");
+  const tabDefs=[
+    {id:"normal", label:t("正常模式","Normal")},
+    {id:"endless", label:t("無盡模式","Endless")},
+    {id:"all", label:t("全部","All")}
+  ];
+  if(tabs){
+    tabs.innerHTML=tabDefs.map(td=>
+      `<button type="button" class="lb-tab ${tab===td.id?"active":""}" onclick="setLbTab('${td.id}')">${td.label}</button>`
+    ).join("");
+  }
+  const all=getLeaderboard();
+  let list = tab==="all" ? all.slice() : all.filter(e=>(e.mode||"normal")===tab);
+  list.sort((a,b)=>{
+    if(a.day!==b.day) return a.day-b.day;
+    return (b.date||0)-(a.date||0);
+  });
+  if(sub){
+    if(tab==="normal") sub.textContent=t("以最快擊敗魔王日數排名（本地）","Ranked by fastest Demon Lord clear (local)");
+    else if(tab==="endless") sub.textContent=t("無盡模式首次擊敗魔王日數（本地）","Endless first Demon Lord clear day (local)");
+    else sub.textContent=t("全部模式通關紀錄（本地）","All mode clear records (local)");
+  }
+  if(!body)return;
+  if(!list.length){
+    const emptyMsg = tab==="endless"
+      ? t("尚無無盡模式紀錄。\n無盡模式首次打贏魔王後可寫入。","No Endless records yet.\nRecorded after first Demon Lord win in Endless.")
+      : tab==="all"
+        ? t("尚無任何通關紀錄。","No clear records yet.")
+        : t("尚無正常模式紀錄。\n正常模式打贏魔王通關後會寫入。","No Normal records yet.\nSaved when you clear Normal by beating the Demon Lord.");
+    body.innerHTML=`<div class="lb-empty">${emptyMsg}</div>`;
+    return;
+  }
+  body.innerHTML=list.slice(0,20).map((e,i)=>{
+    const diffN={easy:t("簡單","Easy"),normal:t("一般","Normal"),hard:t("困難","Hard")}[e.diff]||e.diff;
+    const modeN=e.mode==="endless"?t("無盡","Endless"):t("正常","Normal");
+    const job=jobLabel(e.job);
+    return `<div class="lb-row">
+      <div class="lb-rank">#${i+1}</div>
+      <div><div class="lb-name">${e.name||"?"}</div><div class="lb-meta">${modeN} · ${diffN}${job?(" · "+job):""}</div></div>
+      <div class="lb-score">${t("第 ","Day ")}${e.day}${t(" 日","")}</div>
+    </div>`;
+  }).join("");
+}
+function recordNormalClearAndEnd(){
+  addLeaderboardEntry({
+    name: G.name||G.playerName||"Hero",
+    day: G.day,
+    diff: G.diff||"normal",
+    mode: "normal",
+    job: G.job||"",
+    date: Date.now()
+  });
+  G.cleared=true;
+  saveGame();
+  uiAlert(
+    t("【通關】\n\n你在第 ","[CLEAR]\n\nYou defeated the Demon Lord on day ")+G.day+
+    t(" 日擊敗了魔王！\n成績已寫入排行榜。\n\n正常模式到此結束。","!\nScore saved to the leaderboard.\n\nNormal mode ends here.")
+  ).then(()=>{
+    G=null;
+    showScreen("title-screen");
+    window._lbTab="normal";
+    toggleLeaderboard();
+  });
+}
+
+
+function playOpeningCinema(){
+  const name = (G && G.name) ? G.name : t("冒險者","Adventurer");
+  const modeLine = G && G.mode==="endless"
+    ? t("你選擇了無盡之路——魔王倒下也不會是終點。","You chose the Endless path — even the Demon Lord's fall is not the end.")
+    : t("你只有約三百個日夜。在命運收網之前，必須變強。","You have about three hundred days. Grow strong before fate closes in.");
+  const pages=[
+    {
+      title: t("序章 · 裂縫","Prologue · The Crack"),
+      art: "🌅",
+      text: t("東方天際裂開一道紅痕。\n村民不敢直視，只說那是「魔王窟」在甦醒。\n你——"+name+"——站在村莊入口，行李很輕，決心很重。","A red scar splits the eastern sky.\nVillagers look away and call it the Demon Lair awakening.\nYou — "+name+" — stand at the village gate. Light pack. Heavy resolve.")
+    },
+    {
+      title: t("長老的囑託","The Elder's Charge"),
+      art: "📜",
+      text: t("長老把一把舊劍塞進你手裡。\n「先採集、先成長。工會會給你第一份方向。\n等你夠強，再去東方面對它。」\n\n"+modeLine,"The elder presses an old sword into your hands.\n\"Gather first. Grow first. The Guild will give you direction.\nWhen you are ready, face it in the east.\"\n\n"+modeLine)
+    },
+    {
+      title: t("出發","Depart"),
+      art: "🗺️",
+      text: t("四周已有資源點。移動、採集、戰鬥、接任務——\n每一步都在為那一戰鋪路。\n\n目標：先升到 3 級，再回村莊解鎖工會。","Resource nodes are nearby. Move, gather, fight, take quests—\neach step paves the way to that battle.\n\nGoal: Reach Lv.3, then return to unlock the Guild.")
+    }
+  ];
+  window._bossCinema={pages,i:0,first:false,kind:"opening"};
+  const flash=document.getElementById("bc-flash");
+  if(flash){flash.classList.remove("on");void flash.offsetWidth;flash.classList.add("on");}
+  sfxRare&&sfxRare();
+  document.getElementById("boss-cinema").style.display="flex";
+  bossCinemaShowPage();
+}
+
+function playRuins50Cinema(){
+  const pages=[{
+    title: t("半途的光","Halfway Light"),
+    art: "🕯️",
+    text: (LANG==="zh"
+      ? "第 50 層。\n火把忽然自己亮起，照出牆上半行銘文：\n「再往下，會聽見自己的名字。」\n你握緊武器，繼續下潛。"
+      : "Floor 50.\nTorches flare on their own, revealing half a line on the wall:\nDeeper still, you will hear your own name.\nYou grip your weapon and descend.")
+  },{
+    title: t("遺跡中點","Ruins Midpoint"),
+    art: "⬇️",
+    text: t("體力在恢復，意志卻更沉。\n前方還有 50 層——魔王的影子，似乎也更近了。","Body recovers; will grows heavier.\nFifty floors remain — the Demon Lord's shadow feels nearer.")
+  }];
+  window._bossCinema={pages,i:0,first:false,kind:"ruins50"};
+  const flash=document.getElementById("bc-flash");
+  if(flash){flash.classList.remove("on");void flash.offsetWidth;flash.classList.add("on");}
+  screenShake&&screenShake();
+  sfxRare&&sfxRare();
+  document.getElementById("boss-cinema").style.display="flex";
+  bossCinemaShowPage();
+}
+
+function playRuinsClearCinema(clearCount){
+  const pages = [
+    {
+      title: t("龍殞 · 遺跡之心","Dragon Falls · Ruins Heart"),
+      art: "🐉✨",
+      text: t("遠古巨龍最後一次鼓動雙翼，隨後化作點點星塵。\n第 100 層的核心緩緩開啟——\n一枚仍帶餘溫的龍蛋，躺在石座中央。","The ancient dragon beats its wings one last time, then dissolves into stardust.\nFloor 100 core opens slowly—\na still-warm Dragon Egg rests on the stone seat.")
+    },
+    {
+      title: t("守門者的遺言","The Guardian's Last Words"),
+      art: "📜",
+      text: LANG==="zh"
+        ? "意識消散前，龍語在腦中響起：\n「能走到此處的人……不是盜賊，是繼承者。\n帶著這枚蛋離開。遺跡會記住你的名字。」"
+        : "Before the presence fades, dragon-speech echoes in your mind:\n\"One who reaches here is no thief, but an heir.\nTake this egg. The Ruins will remember your name.\""
+    },
+    {
+      title: t("龍蛋與權能","Egg and Authority"),
+      art: "🥚",
+      text: t("龍蛋在懷中微微震動，很快孵出一隻幼龍。\n它認你為伴。遺跡的力量亦滲入血脈。\n\n這是第 ","The egg trembles, then hatches into a Baby Dragon.\nIt accepts you as partner. Ruins-power seeps into your blood.\n\nThis is clear #")+clearCount+t(" 次完整遠征。",".")
+    },
+    {
+      title: t("通關獎勵","Clear Rewards"),
+      art: "🏅",
+      text: t("【遺跡專屬獎勵】\n· 幼龍寵物（傳說）\n· 永久攻擊提升（通關次數×5）\n· 龍鱗碎片 ×3\n· 金幣與強化石\n· 稱號：遺跡繼承者\n\n遺跡已重置，可再次挑戰更深的輪迴。","[Ruins Exclusive Rewards]\n· Baby Dragon pet (Legendary)\n· Permanent ATK up (clears ×5)\n· Dragon Scale Shard ×3\n· Gold & Enhance Stones\n· Title: Ruins Heir\n\nThe Ruins reset — challenge the cycle again.")
+    }
+  ];
+  window._bossCinema = {pages, i:0, first:false, kind:"ruins"};
+  const flash=document.getElementById("bc-flash");
+  if(flash){flash.classList.remove("on");void flash.offsetWidth;flash.classList.add("on");}
+  screenShake&&screenShake();
+  sfxWin&&sfxWin();
+  sfxRare&&sfxRare();
+  document.getElementById("boss-cinema").style.display="flex";
+  bossCinemaShowPage();
+}
+
+function playBossVictoryCinema(first){
+  const pages = first ? [
+    {
+      title: t("魔王崩裂","Demon Lord Falls"),
+      art: "💥👿",
+      text: t("魔王發出最後的咆哮，身軀化作紅光碎裂。\n大地震動——封印的裂縫正在癒合。","The Demon Lord roars one last time and shatters into crimson light.\nThe ground trembles—the seal's cracks begin to close.")
+    },
+    {
+      title: t("勇者誕生","A Hero is Born"),
+      art: "🏅",
+      text: t("村民的歡呼從遠方傳來。\n長老將一柄仍帶餘溫的魔王劍交到你手上。\n「從今日起，你是這片土地的勇者。」","Cheers rise from the village.\nThe elder places the still-warm Demon Blade in your hands.\n\"From this day, you are this land's Hero.\"")
+    },
+    {
+      title: t("新的旅途","A New Journey"),
+      art: "🌅",
+      text: t("但魔王不會永遠沉睡。\n羈絆、遺跡、下一次決戰——\n真正的冒險，才剛開始。\n\n【獎勵】稱號「勇者」／永久攻擊+10／魔王劍","But the Demon Lord will not sleep forever.\nBonds, Ruins, the next decisive battle—\nthe true adventure has only begun.\n\n[Rewards] Title Hero / Permanent ATK+10 / Demon Blade")
+    }
+  ] : [
+    {
+      title: t("再次勝利","Victory Once More"),
+      art: "⚔️👿",
+      text: t("熟悉的紅光再次散去。\n魔王低語：「……下次，不會再輸。」\n你握緊武器，感受羈絆與力量再上一層。","The familiar crimson light fades again.\nThe Demon Lord whispers: \"...Next time, I won't lose.\"\nYou grip your weapon—bond and power rise another step.")
+    },
+    {
+      title: t("勇者進階","Hero Ascends"),
+      art: "🏅",
+      text: t("稱號強化，永久攻擊提升。\n村莊記得你的名字——每一次回歸，都是傳說的續寫。","Your title strengthens. Permanent ATK rises.\nThe village remembers your name—each return rewrites the legend.")
+    }
+  ];
+  // Normal mode first clear → game ends after cinema
+  const endNormal = !!(first && G && G.mode==="normal");
+  if(endNormal && pages.length){
+    pages[pages.length-1]={
+      title: t("傳說落幕","Legend Complete"),
+      art: "📜",
+      text: t("第 ","Day ")+G.day+t(" 日——你擊敗了魔王。\n在 300 日的命運之中，你提前寫下結局。\n\n成績將記入排行榜。\n正常模式到此完結。"," — you defeated the Demon Lord.\nWithin the 300-day fate, you wrote an early ending.\n\nYour clear is ranked.\nNormal mode ends here.")
+    };
+  }else if(first && G && G.mode==="endless" && pages.length){
+    pages[pages.length-1]={
+      title: t("無盡之路","Endless Road"),
+      art: "♾️",
+      text: t("魔王倒下，但無盡模式沒有終點。\n他會再來。遺跡仍在。羈絆仍可加深。\n\n【獎勵】稱號「勇者」／永久攻擊+10／魔王劍","The Demon Lord falls, but Endless has no finish line.\nHe will return. Ruins remain. Bonds can deepen.\n\n[Rewards] Title Hero / Permanent ATK+10 / Demon Blade")
+    };
+  }
+  window._bossCinema = {pages, i:0, first, kind:"boss", endNormal};
+  const flash=document.getElementById("bc-flash");
+  if(flash){flash.classList.remove("on");void flash.offsetWidth;flash.classList.add("on");}
+  screenShake&&screenShake();
+  sfxWin&&sfxWin();
+  document.getElementById("boss-cinema").style.display="flex";
+  bossCinemaShowPage();
+}
+function bossCinemaShowPage(){
+  const st=window._bossCinema; if(!st)return;
+  const p=st.pages[st.i];
+  document.getElementById("bc-title").textContent=p.title;
+  document.getElementById("bc-art").textContent=p.art;
+  document.getElementById("bc-text").textContent=p.text;
+  const btn=document.getElementById("bc-next");
+  btn.textContent = st.i < st.pages.length-1 ? t("繼續 ▶","Continue ▶") : t("踏入新篇章","Enter the New Chapter");
+}
+function bossCinemaNext(){
+  const st=window._bossCinema; if(!st)return;
+  if(st.i < st.pages.length-1){
+    st.i++;
+    bossCinemaShowPage();
+    sfxClick&&sfxClick();
+    return;
+  }
+  document.getElementById("boss-cinema").style.display="none";
+  const kind=st.kind||"boss";
+  const endNormal=!!st.endNormal;
+  window._bossCinema=null;
+  if(kind==="opening"){
+    if(G){
+      G.storyStage=1;
+      if(!G.storyFlags)G.storyFlags={};
+      G.storyFlags["ev_intro"]=true;
+      dialogue(t("歡迎，冒險者。先採集附近的資源，感受成長的節奏。","Welcome, adventurer. Gather nearby resources and feel the growth."));
+      updateObjective&&updateObjective();
+      saveGame&&saveGame();
+    }
+    return;
+  }
+  if(kind==="ruins"||kind==="ruins50"){
+    if(kind==="ruins50"){
+      dialogue(t("第 50 層的回聲仍在耳邊。繼續向下吧。","Floor 50's echo still rings. Keep descending."));
+    }else{
+      dialogue(t("你從遺跡最深處走回地面，陽光有點刺眼。","You walk back from the deepest Ruins; sunlight stings a little."));
+    }
+    updateObjective&&updateObjective();
+    if(typeof renderRuins==="function") renderRuins();
+    return;
+  }
+  // Boss victory end
+  if(endNormal){
+    recordNormalClearAndEnd();
+    return;
+  }
+  playStoryEvent&&playStoryEvent("hero");
+  updateObjective&&updateObjective();
+  dialogue(t("你帶著魔王潰敗的餘燼回到村莊。魔王將在數日後再生——無盡的試煉仍在繼續。","You return with the Demon Lord's embers. He will rise again in days—the endless trial continues."));
 }
 
 function endBattle(win){
@@ -1677,24 +2078,30 @@ function endBattle(win){
       }
     }
     
-    // 魔王特殊獎勵
-    if(battle.enemy.isBoss){
+    // 魔王特殊獎勵 + 劇情演出（排除遺跡守護者）
+    if(battle.enemy.isBoss && !battle.enemy.isRuinsGuardian){
       G.bossRespawnDay = G.day + 6;
-      if(!G.heroTitle){
+      const firstKill=!G.heroTitle;
+      if(firstKill){
         G.heroTitle = "勇者";
         G.heroLevel = 1;
         G.storyStage = 5;
         G.bossKills = (G.bossKills||0)+1;
         G.permanentAtk += 10;
-        G.equip.weapon = {name:"魔王劍",atk:25,rarity:4,enhance:0};
+        G.equip.weapon = {name:"魔王劍",atk:25,rarity:4,enhance:0,spd:2};
         addLog(t("🎉 首次擊敗魔王！獲得稱號「勇者」、攻擊+10、紅色武器「魔王劍」","🎉 First Demon Lord defeat! Title Hero, ATK+10, red weapon Demon Blade"));
-        uiAlert(t("主線完成：你成為了勇者！之後可反覆挑戰魔王與遺跡。","Main story complete: You are a Hero! You can challenge the Demon Lord and Ruins again."));
+        if(G.mode==="endless"){
+          addLeaderboardEntry({name:G.name||"Hero",day:G.day,diff:G.diff||"normal",mode:"endless",job:G.job||"",date:Date.now()});
+        }
       }else{
         G.heroLevel++;
+        G.bossKills = (G.bossKills||0)+1;
         G.heroTitle = "勇者+" + G.heroLevel;
         G.permanentAtk += 10;
         addLog(t("🎉 再次擊敗魔王！稱號更新為「","🎉 Demon Lord defeated again! Title ")+tn(G.heroTitle)+t("」、攻擊+10"," , ATK+10"));
       }
+      // Delay cinema slightly so battle UI can settle
+      setTimeout(()=>playBossVictoryCinema(firstKill), 350);
     }
   }else{
     sfxLose();
@@ -1723,9 +2130,58 @@ function endBattle(win){
     },400);
   }
   setTimeout(()=>{
-    if(G.fromRuins && win){
+    if(battle.enemy && battle.enemy.isRuinsGuardian && win){
       G.fromRuins=false;
-      G.ruinsFloor++;
+      G.ruinsClears=(G.ruinsClears||0)+1;
+      const gain=5*G.ruinsClears;
+      G.permanentAtk+=gain;
+      G.gold+=150+G.ruinsClears*50;
+      G.inv.skillStone=(G.inv.skillStone||0)+3;
+      G.inv.dragonScale=(G.inv.dragonScale||0)+3;
+      G.fame+=20;
+      G.ruinsFloor=1;
+      G.ruinsHighest=Math.max(G.ruinsHighest||0,100);
+      if(G.storyFlags)G.storyFlags.ruins50=false;
+      // Exclusive title (does not replace Hero)
+      G.ruinsTitle=t("遺跡繼承者","Ruins Heir");
+      // Dragon Egg -> hatch as pet
+      const eggPet={
+        id:Date.now(),name:"幼龍",icon:"🐉",
+        rarity:4,level:1,exp:0,maxExp:40,
+        atk:18+(G.ruinsClears||1)*2,hp:80+(G.ruinsClears||1)*10,
+        maxHp:80+(G.ruinsClears||1)*10,spd:11,bond:25,
+        skillName:t("龍息","Dragon Breath"), isDragon:true
+      };
+      G.pets.push(eggPet);
+      if(!G.activePet)G.activePet=eggPet;
+      addLog(t("遺跡通關！獲得龍蛋（幼龍）、龍鱗碎片、永久攻擊 +","Ruins cleared! Dragon Egg (Baby Dragon), Scale Shards, Permanent ATK +")+gain);
+      showScreen("ruins-screen");
+      updateUI();saveGame();renderRuins();
+      setTimeout(()=>playRuinsClearCinema(G.ruinsClears), 400);
+    }else if(G.fromRuins && win){
+      G.fromRuins=false;
+      // Mid-floor boss or normal: advance floor
+      if(battle.enemy && battle.enemy.isRuinsBoss){
+        const f=battle.enemy.ruinsFloor||G.ruinsFloor;
+        G.gold+=30+f;
+        if(f%20===0){G.permanentAtk+=2;addLog(t("永久攻擊 +2（遺跡里程碑）","Permanent ATK +2 (Ruins milestone)"));}
+        if(Math.random()<0.55){
+          const rar=f>=50?3:f>=25?2:1;
+          G.equip.necklace={name:RARITY[rar]+"項鏈",def:2+rar*2,rarity:rar,enhance:0};
+          addLog(t("獲得飾品！","Got accessory!"));
+        }
+        addLog(t("第 ","Floor ")+f+t(" 層守衛倒下"," guardian falls"));
+        if(f===50){
+          G.ruinsFloor=51;
+          G.ruinsHighest=Math.max(G.ruinsHighest,51);
+          if(!G.storyFlags)G.storyFlags={};
+          if(!G.storyFlags.ruins50){G.storyFlags.ruins50=true;setTimeout(()=>playRuins50Cinema(),350);}
+        }else{
+          G.ruinsFloor=f+1;
+        }
+      }else{
+        G.ruinsFloor++;
+      }
       G.ruinsHighest=Math.max(G.ruinsHighest,G.ruinsFloor);
       addLog(t("遺跡戰鬥結束，進入第 ","Ruins battle done, enter floor ")+G.ruinsFloor);
       showScreen("ruins-screen");
@@ -1972,10 +2428,116 @@ function renderSkillEnhance(){if(!G.skills.length){document.getElementById("skil
 function enhSkill(i){if((G.inv.skillStone||0)<1){uiAlert(t("強化石不足","Not enough Enhance Stones"));return;}G.inv.skillStone--;if(Math.random()<Math.max(0.2,0.95-(G.skills[i].enhance||0)*0.1)){G.skills[i].enhance=(G.skills[i].enhance||0)+1;addLog(tn(G.skills[i].name)+t(" 強化成功"," enhanced"));}else addLog(t("強化失敗","Enhance failed"));saveGame();renderSkillEnhance();}
 
 function renderRuins(){
-  const recent=eventLog.slice(-5).map(m=>`<div class="small">${m}</div>`).join("")||`<div class='small'>${t("暫無記錄","No records")}</div>`;
-  document.getElementById("ruins-content").innerHTML=`<div>${t("目前層數：","Floor: ")}${G.ruinsFloor}/100</div><div class="log-box" style="height:80px;margin:6px 0">${recent}</div><button class="btn mt-6" onclick="exploreRuins()">${t("探索當前層","Explore Current Floor")} (1AP)</button><button class="btn" onclick="showScreen('game-screen')">${t("← 返回地圖","← Back to Map")}</button>`;
+  const recent=eventLog.slice(-6).map(m=>`<div class="small">${m}</div>`).join("")||`<div class='small'>${t("暫無記錄","No records")}</div>`;
+  const tip = G.ruinsFloor>=100
+    ? t("第 100 層：遺跡守護者在此沉睡……","Floor 100: The Ruins Guardian slumbers here...")
+    : G.ruinsFloor%10===0
+      ? t("本層有守衛，探索將進入戰鬥。","A guardian holds this floor — explore starts a fight.")
+      : t("探索可能遭遇戰鬥、寶箱、神殿或陷阱。","Explore for battles, chests, shrines, or traps.");
+  document.getElementById("ruins-content").innerHTML=
+    `<div><b>${t("目前層數：","Floor: ")}${G.ruinsFloor}/100</b> · ${t("最高","Best")} ${G.ruinsHighest||1} · ${t("通關","Clears")} ${G.ruinsClears||0}</div>`+
+    `<div class="small mt-6">${tip}</div>`+
+    `<div class="log-box" style="height:90px;margin:6px 0">${recent}</div>`+
+    `<button class="btn mt-6" onclick="exploreRuins()">${G.ruinsFloor>=100?t("挑戰遺跡守護者","Challenge Ruins Guardian"):t("探索當前層","Explore Current Floor")} (1AP)</button>`+
+    `<button class="btn" onclick="showScreen('game-screen')">${t("← 返回地圖","← Back to Map")}</button>`;
 }
-function exploreRuins(){if(G.ap<1){uiAlert(t("AP不足","Not enough AP"));return;}G.ap--;const f=G.ruinsFloor;if(f%10===0){addLog(t("第 ","Floor ")+f+t(" 層 Boss 戰勝利"," Boss victory"));G.gold+=30+f;if(f%20===0){G.permanentAtk+=2;addLog(t("永久攻擊 +2（遺跡里程碑）","Permanent ATK +2 (Ruins milestone)"));}if(Math.random()<0.6){const rar=f>=50?3:f>=25?2:1;G.equip.necklace={name:RARITY[rar]+"項鏈",def:2+rar*2,rarity:rar,enhance:0};addLog(t("獲得飾品！","Got accessory!"));}G.ruinsFloor++;if(f===100){G.ruinsClears++;G.permanentAtk+=5*G.ruinsClears;G.ruinsFloor=1;addLog(t("通關第100層！永久攻擊提升","Cleared floor 100! Permanent ATK up"));}}else{const r=Math.random();if(r<0.35){G.fromRuins=true;startForestBattle();return;}else if(r<0.5){G.hp=Math.max(1,G.hp-10);addLog(t("觸發陷阱","Triggered a trap"));}else if(r<0.7){openRuinsChest(f);}else addLog(t("無事發生","Nothing happened"));G.ruinsFloor++;}G.ruinsHighest=Math.max(G.ruinsHighest,G.ruinsFloor);updateUI();saveGame();renderRuins();}
+function startRuinsGuardianBattle(){
+  const d=DIFF[G.diff]||DIFF.normal;
+  const sc=1+G.day*0.03+G.level*0.04+(G.ruinsClears||0)*0.12;
+  let hp=Math.floor(900*sc*d.monMul);
+  hp=Math.max(hp, 800);
+  let atk=Math.floor(38*sc);
+  const spd=10;
+  uiAlert(t("【遺跡守護者】\n\n遠古巨龍張開雙翼，遺跡石壁為之震動。\n「外來者……放下野心，或成為灰燼。」","[Ruins Guardian]\n\nAn ancient dragon spreads its wings; the stones shake.\n\"Outsider... abandon ambition, or become ash.\"")).then(()=>{
+    G.fromRuins=true;
+    startBattleWith({
+      name:"遺跡守護者",icon:"🐉",hp,atk,spd,rarity:4,maxHp:hp,
+      isRuinsGuardian:true,isBoss:true,berserk:false
+    });
+    addBLog(t("—— 遺跡守護者：遠古巨龍 ——","— Ruins Guardian: Ancient Dragon —"));
+  });
+}
+function startRuinsFloorBoss(f){
+  const d=DIFF[G.diff]||DIFF.normal;
+  const sc=1+f*0.012+G.level*0.02;
+  const pool=[
+    {name:"石魔",icon:"🗿",hp:70,atk:14,spd:5,r:2},
+    {name:"亡靈騎士",icon:"⚔️",hp:90,atk:20,spd:8,r:4},
+    {name:"幽靈",icon:"👻",hp:55,atk:16,spd:12,r:3},
+    {name:"鐵甲哥布林",icon:"🛡️",hp:75,atk:13,spd:6,r:3}
+  ];
+  const base=pool[Math.floor(Math.random()*pool.length)];
+  const hp=Math.floor(base.hp*sc*d.monMul*1.8);
+  const atk=Math.floor(base.atk*sc*1.5);
+  G.fromRuins=true;
+  startBattleWith({
+    name:base.name,icon:base.icon,hp,atk,spd:base.spd,rarity:base.r,maxHp:hp,
+    isRuinsBoss:true,ruinsFloor:f,elite:true
+  });
+  addBLog(t("第 ","Floor ")+f+t(" 層守衛出現！"," guardian appears!"));
+}
+function exploreRuins(){
+  if(G.ap<1){uiAlert(t("AP不足","Not enough AP"));return;}
+  G.ap--;
+  const f=G.ruinsFloor;
+  // Floor 100: Ancient Dragon
+  if(f>=100){
+    updateUI();saveGame();
+    startRuinsGuardianBattle();
+    return;
+  }
+  // Every 10th floor: real boss fight
+  if(f%10===0){
+    updateUI();saveGame();
+    startRuinsFloorBoss(f);
+    return;
+  }
+  // Regular floors: richer event table
+  const r=Math.random();
+  if(r<0.28){
+    // Scaled ruins monster
+    G.fromRuins=true;
+    const m=MONSTERS[Math.floor(Math.random()*MONSTERS.length)];
+    const mul=(0.95+Math.random()*0.4)*(1+f*0.012)*(DIFF[G.diff].monMul);
+    startBattleWith({name:m.name,icon:m.icon,hp:Math.floor(m.hp*mul),atk:Math.floor(m.atk*mul),spd:m.spd,rarity:m.r,maxHp:0});
+    return;
+  }else if(r<0.42){
+    openRuinsChest(f);
+  }else if(r<0.52){
+    // Shrine heal
+    const heal=Math.floor(G.maxHp*0.25)+10;
+    G.hp=Math.min(G.maxHp,G.hp+heal);
+    G.mp=Math.min(G.maxMp,G.mp+Math.floor(G.maxMp*0.2));
+    addLog(t("發現治癒神殿，回復 HP/MP","Found a healing shrine — restored HP/MP"));
+    sfxHeal&&sfxHeal();
+  }else if(r<0.60){
+    // Altar: permanent tiny boost or stone
+    if(Math.random()<0.35){G.permanentAtk+=1;addLog(t("古祭壇回應你：永久攻擊 +1","Ancient altar answers: Permanent ATK +1"));}
+    else{G.inv.skillStone=(G.inv.skillStone||0)+1;addLog(t("古祭壇賜下強化石","Ancient altar grants an Enhance Stone"));}
+    sfxRare&&sfxRare();
+  }else if(r<0.70){
+    // Trap with choices mitigated by def
+    const dmg=Math.max(5,18+Math.floor(f/8)-Math.floor((G.equip.body?.def||0)/2));
+    G.hp=Math.max(1,G.hp-dmg);
+    addLog(t("觸發遺跡陷阱，受到 ","Triggered a ruins trap for ")+dmg+t(" 傷害"," dmg"));
+  }else if(r<0.80){
+    // Scout cache: gold + fame
+    const g=15+Math.floor(f*1.2)+Math.floor(Math.random()*20);
+    G.gold+=g;G.fame+=1;
+    addLog(t("發現探險者遺留的補給 +","Found an explorer cache +")+g+"G");
+  }else if(r<0.88){
+    // Echo: free floor skip feel — small exp
+    const xp=8+Math.floor(f/5);
+    G.exp+=xp;
+    addLog(t("聽到古代回聲，獲得 EXP+","Heard an ancient echo, EXP+")+xp);
+    while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.35);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;G.gold+=10+G.level*2;addLog(t("升級！Lv.","Level up! Lv.")+G.level);}
+  }else{
+    addLog(t("安靜的石廊，無事發生","Quiet stone hall. Nothing happened."));
+  }
+  G.ruinsFloor++;
+  G.ruinsHighest=Math.max(G.ruinsHighest,G.ruinsFloor);
+  updateUI();saveGame();renderRuins();
+}
 function openRuinsChest(f){
   const gold=20+Math.floor(f*1.5)+Math.floor(Math.random()*20);
   G.gold+=gold;
