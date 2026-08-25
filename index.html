@@ -18,7 +18,9 @@ button:active{background:#444}button:disabled{opacity:.45}
 #title-screen{text-align:center;padding-top:24px}
 #title-screen h1{color:var(--accent);font-size:22px;margin-bottom:6px}
 .subtitle{color:#888;margin-bottom:18px;font-size:12px}
-.menu-btn{display:block;width:100%;margin:6px 0;background:#222;color:var(--gold);border:1px solid #666;font-size:14px;padding:12px}
+.menu-btn{display:block;width:100%;margin:6px 0;background:#222;color:var(--gold);border:1px solid #666;font-size:14px;padding:12px;max-width:420px;margin-left:auto;margin-right:auto;text-align:center}
+.menu-btn.danger{color:var(--danger);border-color:#833}
+#ingame-menu .menu-btn{max-width:320px}
 .stats-panel{background:#1c1c1c;border:1px solid var(--border);padding:8px;border-radius:6px;margin-bottom:6px;display:grid;grid-template-columns:1fr 1fr;gap:2px 6px;font-size:12px}
 .stat-item{color:var(--accent)}.stat-full{grid-column:span 2}
 .map-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;background:#1c1c1c;padding:6px;border-radius:6px;border:1px solid var(--border);margin-bottom:6px;text-align:center}
@@ -477,12 +479,18 @@ body{padding:6px;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));min-
 
 <div id="ingame-menu" class="screen">
   <h2 class="text-center mb-6">Menu</h2>
-  <button class="menu-btn" onclick="saveGame();uiAlert(t('已存檔至目前欄位','Saved to current slot'));showScreen('game-screen')">💾 Save</button>
-  <button class="menu-btn" onclick="showSaveSlots('save')">💾 Save to Other Slot</button>
-  <button class="menu-btn" onclick="showScreen('setting-screen')">⚙️ Settings</button>
-  <button class="menu-btn" onclick="showScreen('prestige-screen');renderPrestige()">⭐ Prestige</button>
-  <button class="menu-btn" onclick="showScreen('game-screen')">← Back to Game</button>
-  <button class="btn danger mt-6" onclick="uiConfirm(t('返回主界面？','Return to title?')).then(ok=>{if(ok)showScreen('title-screen')})">🏠 Title Screen</button>
+  <button class="menu-btn" id="im-save" onclick="saveGame();uiAlert(t('已存檔至目前欄位','Saved to current slot'));showScreen('game-screen')">💾 Save</button>
+  <button class="menu-btn" id="im-save2" onclick="showSaveSlots('save')">💾 Save to Other Slot</button>
+  <button class="menu-btn" id="im-ach" onclick="showScreen('achieve-screen');renderAchievements()">🏆 Achievements</button>
+  <button class="menu-btn" id="im-prestige" onclick="showScreen('prestige-screen');renderPrestige()">⭐ Prestige</button>
+  <button class="menu-btn" id="im-set" onclick="showScreen('setting-screen')">⚙️ Settings</button>
+  <button class="menu-btn" id="im-back" onclick="showScreen('game-screen')">← Back to Game</button>
+  <button class="menu-btn danger" id="im-title" onclick="uiConfirm(t('返回主界面？','Return to title?')).then(ok=>{if(ok)showScreen('title-screen')})">🏠 Title Screen</button>
+</div>
+<div id="achieve-screen" class="screen">
+  <h2 class="text-center mb-6" id="ach-title">🏆 Achievements</h2>
+  <div id="achieve-content"></div>
+  <button class="btn mt-6 back-btn" onclick="showScreen('ingame-menu')">← Back</button>
 </div>
 
 
@@ -568,6 +576,7 @@ function showScreen(id){
   if(id==="skill-screen")renderSkillEnhance();
   if(id==="ruins-screen")renderRuins();
   if(id==="prestige-screen")renderPrestige();
+  if(id==="achieve-screen")renderAchievements();
   if(id==="auth-screen"){initFirebase();updateAuthUI();}
 }
 function backFromMenu(){G?showScreen("game-screen"):showScreen("title-screen");}
@@ -598,6 +607,7 @@ function confirmSkill(idx){
   G.storyStage=0;
   G.tutorialStep=1;G.firstGather=true;G.firstBattle=true;
   applyPrestigeToNewGame();
+  G.onboardTips={move:true,gather:true};
   // Day-1 guaranteed nearby resources for fast first feedback
   G.mapEvents={
     "1,2":{type:"res",res:"herb",icon:"🌿",rarity:0},
@@ -1150,12 +1160,14 @@ function applyLanguage(){
   // In-game menu
   const imh=document.querySelector("#ingame-menu h2");
   if(imh)imh.textContent=t("選單","Menu");
-  const imbtns=document.querySelectorAll("#ingame-menu .menu-btn, #ingame-menu .btn");
-  if(imbtns[0])imbtns[0].textContent=t("💾 保存 / Save","💾 Save");
-  if(imbtns[1])imbtns[1].textContent=t("💾 存至其他欄位","💾 Save to Other Slot");
-  if(imbtns[2])imbtns[2].textContent=t("⚙️ 設定","⚙️ Settings");
-  if(imbtns[3])imbtns[3].textContent=t("← 返回遊戲","← Back to Game");
-  if(imbtns[4])imbtns[4].textContent=t("🏠 返回主界面","🏠 Title Screen");
+  const imMap=[["im-save",t("💾 保存","💾 Save")],["im-save2",t("💾 存至其他欄位","💾 Save to Other Slot")],
+    ["im-ach",t("🏆 成就","🏆 Achievements")],["im-prestige",t("⭐ 英雄印記","⭐ Prestige")],
+    ["im-set",t("⚙️ 設定","⚙️ Settings")],["im-back",t("← 返回遊戲","← Back to Game")],
+    ["im-title",t("🏠 返回主界面","🏠 Title Screen")]];
+  imMap.forEach(([id,txt])=>{const n=document.getElementById(id);if(n)n.textContent=txt;});
+  const ath=document.getElementById("ach-title");
+  if(ath)ath.textContent=t("🏆 成就","🏆 Achievements");
+  if(document.getElementById("achieve-screen")?.classList.contains("active")) renderAchievements();
   // Battle labels
   // Re-render dynamic content if game is active
   if(G){
@@ -1176,6 +1188,7 @@ function applyLanguage(){
       if(id==="skill-screen")renderSkillEnhance();
       if(id==="ruins-screen")renderRuins();
   if(id==="prestige-screen")renderPrestige();
+  if(id==="achieve-screen")renderAchievements();
   if(id==="auth-screen"){initFirebase();updateAuthUI();}
       if(id==="game-screen")checkTile();
       if(id==="battle-screen"){updateBattleUI();if(battle)renderPlayerActions();}
@@ -1511,7 +1524,14 @@ function checkTile(){
     if(ev.type==="npc"){dialogue(`${ev.icon} ${tn(ev.name)}`);opt.innerHTML=`<button class="btn" onclick="interactNpc('${k}')">${t("互動","Interact")}</button>`;return;}
     if(ev.type==="rare"){dialogue(`${ev.icon} ${ev.name||tn(ev.rare)}`);opt.innerHTML=`<button class="btn" onclick="interactRare('${k}')">${t("調查","Investigate")}</button>`;return;}
   }
-  if(!tile){dialogue(t("平坦草地","Flat grassland"));return;}
+  if(!tile){
+    dialogue(t("平坦草地","Flat grassland"));
+    if(G.tutorialStep===1&&!G._tipMove){
+      G._tipMove=true;
+      opt.innerHTML=`<div class="small" style="width:100%;color:#9fefc3">${t("提示：用方向鍵移動到 ⛏️🌿🪵 格子，再按「採集」。","Tip: Move to ⛏️🌿🪵 tiles, then tap Gather.")}</div>`;
+    }
+    return;
+  }
   if(tile.type==="village"){
     dialogue(t("回到村莊","Back at the village"));
     let btns=`<button class="btn" onclick="rest()">${t("旅店休息","Inn Rest")}</button><button class="btn" onclick="showScreen('shop-screen')">🛒 ${t("商店","Shop")}</button>`;
@@ -1540,7 +1560,7 @@ function checkTile(){
 }
 function dialogue(msg){document.getElementById("dialogue").textContent=msg;}
 
-function gather(k){if(G.stamina<1||G.ap<1)return;G.stamina--;G.ap--;const ev=G.mapEvents[k];if(!G.inv[ev.res])G.inv[ev.res]={};let rar=0;{const rr=Math.random();if(rr>0.992)rar=4;else if(rr>0.96)rar=3;else if(rr>0.88)rar=2;else if(rr>0.62)rar=1;}G.inv[ev.res][rar]=(G.inv[ev.res][rar]||0)+1;addLog(t("採集到 ","Gathered ")+tn(ev.res)+"（"+rarityName(rar)+"）");let gexp=6+Math.floor(Math.random()*5);if(G.level<5)gexp=Math.floor(gexp*1.6);if(G.level<3)gexp+=4;if(G.firstGather){G.firstGather=false;gexp+=12;G.gold+=15;addLog(t("🌟 第一次採集獎勵！","🌟 First gather bonus!"));sfxRare();if(G.tutorialStep===1){G.tutorialStep=2;updateObjective();}}G.exp+=gexp;addLog(t("採集獲得 EXP+","Gather EXP+")+gexp);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.35);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;G.gold+=10+G.level*2;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(t("等級","Lv")+G.level+t("！AP上限+1","! AP max +1"));}sfxLevel();addLog(t("升級！Lv.","Level up! Lv.")+G.level+t("（獎勵金幣）"," (gold bonus)"));if(G.tutorialStep&&G.tutorialStep<3&&G.level>=3){G.tutorialStep=3;updateObjective();uiAlert(t("太好了！你達到 3 級。\n回村莊解鎖工會，接第一個任務吧。","Great! You reached Lv.3.\nReturn to the village to unlock the Guild and take a quest."));}}if(ev.res==="ore"&&Math.random()<0.12){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog(t("採礦幸運獲得強化石！","Lucky mining: Enhance Stone!"));}if(Math.random()<0.4){G.stamina=Math.min(G.maxStamina,G.stamina+1);addLog(t("採集時恢復了 1 體力","Gathering restored 1 STA"));}sfxGather();updateQuestProgress("Gather",1);delete G.mapEvents[k];updateUI();saveGame();checkTile();}
+function gather(k){if(G.stamina<1||G.ap<1)return;G.stamina--;G.ap--;const ev=G.mapEvents[k];if(!G.inv[ev.res])G.inv[ev.res]={};let rar=0;{const rr=Math.random();if(rr>0.992)rar=4;else if(rr>0.96)rar=3;else if(rr>0.88)rar=2;else if(rr>0.62)rar=1;}G.inv[ev.res][rar]=(G.inv[ev.res][rar]||0)+1;addLog(t("採集到 ","Gathered ")+tn(ev.res)+"（"+rarityName(rar)+"）");let gexp=6+Math.floor(Math.random()*5);if(G.level<5)gexp=Math.floor(gexp*1.6);if(G.level<3)gexp+=4;if(G.firstGather){G.firstGather=false;gexp+=12;G.gold+=15;addLog(t("🌟 第一次採集獎勵！","🌟 First gather bonus!"));sfxRare();if(G.tutorialStep===1){G.tutorialStep=2;updateObjective();}}G.exp+=gexp;addLog(t("採集獲得 EXP+","Gather EXP+")+gexp);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.35);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;G.gold+=10+G.level*2;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(t("等級","Lv")+G.level+t("！AP上限+1","! AP max +1"));}sfxLevel();addLog(t("升級！Lv.","Level up! Lv.")+G.level+t("（獎勵金幣）"," (gold bonus)"));if(G.tutorialStep&&G.tutorialStep<3&&G.level>=3){G.tutorialStep=3;updateObjective();uiAlert(t("太好了！你達到 3 級。\n回村莊解鎖工會，接第一個任務吧。","Great! You reached Lv.3.\nReturn to the village to unlock the Guild and take a quest."));}}if(ev.res==="ore"&&Math.random()<0.12){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog(t("採礦幸運獲得強化石！","Lucky mining: Enhance Stone!"));}if(Math.random()<0.4){G.stamina=Math.min(G.maxStamina,G.stamina+1);addLog(t("採集時恢復了 1 體力","Gathering restored 1 STA"));}sfxGather();updateQuestProgress("Gather",1);ensureAch();G.stats.gathers=(G.stats.gathers||0)+1;if(G.stats.gathers>=50)unlockAch("gather50");delete G.mapEvents[k];updateUI();saveGame();checkTile();}
 function gatherFixed(type){if(G.stamina<1||G.ap<1)return;G.stamina--;G.ap--;const map={mine:"ore",herb:"herb",wood:"wood"};const res=map[type];let rar=0;{const rr=Math.random();if(rr>0.992)rar=4;else if(rr>0.96)rar=3;else if(rr>0.88)rar=2;else if(rr>0.62)rar=1;}if(!G.inv[res])G.inv[res]={};G.inv[res][rar]=(G.inv[res][rar]||0)+1;addLog(t("採集到 ","Gathered ")+tn(res)+"（"+rarityName(rar)+"）");let gexp=6+Math.floor(Math.random()*5);if(G.level<5)gexp=Math.floor(gexp*1.6);if(G.level<3)gexp+=4;if(G.firstGather){G.firstGather=false;gexp+=12;G.gold+=15;addLog(t("🌟 第一次採集獎勵！","🌟 First gather bonus!"));sfxRare();if(G.tutorialStep===1){G.tutorialStep=2;}}G.exp+=gexp;addLog(t("採集獲得 EXP+","Gather EXP+")+gexp);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.35);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;G.gold+=10+G.level*2;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(t("等級","Lv")+G.level+t("！AP上限+1","! AP max +1"));}addLog(t("升級！Lv.","Level up! Lv.")+G.level+t("（獎勵金幣）"," (gold bonus)"));}if(type==="mine"&&Math.random()<0.12){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog(t("採礦幸運獲得強化石！","Lucky mining: Enhance Stone!"));}if(Math.random()<0.4){G.stamina=Math.min(G.maxStamina,G.stamina+1);addLog(t("採集時恢復了 1 體力","Gathering restored 1 STA"));}updateQuestProgress("Gather",1);updateUI();saveGame();}
 function rest(){G.hp=G.maxHp;G.mp=G.maxMp;G.stamina=G.maxStamina;G.ap=G.maxAp;addLog(t("休息完畢，狀態全回復。","Rested — fully recovered."));nextDay();}
 
@@ -1871,6 +1891,75 @@ window._bossCinema = null;
 
 
 
+
+/* ===== Achievements ===== */
+const ACH_DEF=[
+  {id:"firstKill",zh:"初戰告捷",en:"First Victory",desc_zh:"贏得第一場戰鬥",desc_en:"Win your first battle"},
+  {id:"firstBoss",zh:"魔王剋星",en:"Demon Slayer",desc_zh:"擊敗魔王",desc_en:"Defeat the Demon Lord"},
+  {id:"reach10",zh:"冒險十年",en:"Level 10",desc_zh:"達到等級 10",desc_en:"Reach level 10"},
+  {id:"reach20",zh:"身經百戰",en:"Level 20",desc_zh:"達到等級 20",desc_en:"Reach level 20"},
+  {id:"reach30",zh:"傳奇之路",en:"Level 30",desc_zh:"達到等級 30",desc_en:"Reach level 30"},
+  {id:"pet3",zh:"寵物收集家",en:"Pet Collector",desc_zh:"擁有 3 隻寵物",desc_en:"Own 3 pets"},
+  {id:"fish10",zh:"釣魚達人",en:"Angler",desc_zh:"累計釣到 10 條魚",desc_en:"Catch 10 fish total"},
+  {id:"npc5",zh:"交际能手",en:"Socialite",desc_zh:"與 NPC 互動 5 次",desc_en:"Talk to NPCs 5 times"},
+  {id:"fame100",zh:"聲名遠播",en:"Famous",desc_zh:"名氣達到 100",desc_en:"Reach 100 fame"},
+  {id:"ruins50",zh:"遺跡探索者",en:"Ruins Explorer",desc_zh:"遺跡到達第 50 層",desc_en:"Reach Ruins floor 50"},
+  {id:"ruins100",zh:"遺跡征服者",en:"Ruins Conqueror",desc_zh:"通關遺跡 100 層",desc_en:"Clear Ruins floor 100"},
+  {id:"tutorial",zh:"新手畢業",en:"Tutorial Complete",desc_zh:"完成新手引導",desc_en:"Finish the tutorial"},
+  {id:"gather50",zh:"勤勞採集",en:"Gatherer",desc_zh:"採集 50 次",desc_en:"Gather 50 times"},
+  {id:"craft1",zh:"鐵匠學徒",en:"Apprentice Smith",desc_zh:"鍛造一件裝備",desc_en:"Craft one piece of gear"}
+];
+function ensureAch(){
+  if(!G)return;
+  if(!G.achievements||typeof G.achievements!=="object")G.achievements={};
+  if(!G.stats)G.stats={gathers:0,kills:0};
+}
+function unlockAch(id){
+  ensureAch();
+  if(G.achievements[id]===true)return;
+  // npc5 may be counter
+  if(id==="npc5"&&typeof G.achievements.npc5==="number")return;
+  G.achievements[id]=true;
+  const def=ACH_DEF.find(a=>a.id===id);
+  const name=def?t(def.zh,def.en):id;
+  sfxRare&&sfxRare();
+  floatText&&floatText("🏆","crit");
+  addLog(t("🏆 成就達成：","🏆 Achievement: ")+name);
+  uiAlert(t("🏆 成就達成！\n","🏆 Achievement unlocked!\n")+name+(def?"\n"+t(def.desc_zh,def.desc_en):""));
+  try{cloudSubmitAchievements();}catch(e){}
+}
+function renderAchievements(){
+  ensureAch();
+  let done=0;
+  let h=`<div class="small mb-6">${t("解鎖進度","Progress")}: <span id="ach-prog"></span></div>`;
+  ACH_DEF.forEach(a=>{
+    const ok=G.achievements[a.id]===true;
+    if(ok)done++;
+    h+=`<div class="list-item" style="opacity:${ok?1:0.55}"><span>${ok?"✅":"🔒"} <b>${t(a.zh,a.en)}</b><br><span class="small">${t(a.desc_zh,a.desc_en)}</span></span></div>`;
+  });
+  document.getElementById("achieve-content").innerHTML=h;
+  const p=document.getElementById("ach-prog");
+  if(p)p.textContent=done+" / "+ACH_DEF.length;
+}
+function cloudSubmitAchievements(){
+  if(!_fbUser||!_fbDb||!G)return;
+  const unlocked=ACH_DEF.filter(a=>G.achievements[a.id]===true).map(a=>a.id);
+  _fbDb.collection("achievements").doc(_fbUser.uid).set({
+    name:G.name,unlocked,count:unlocked.length,updatedAt:Date.now()
+  },{merge:true}).catch(()=>{});
+}
+function cloudSubmitScore(){
+  if(!_fbUser||!_fbDb||!G)return;
+  const entry={
+    name:G.name,day:G.day,level:G.level,fame:G.fame||0,
+    mode:G.mode||"normal",diff:G.diff||"normal",
+    bossKills:G.bossKills||0,ruinsHighest:G.ruinsHighest||0,
+    updatedAt:Date.now()
+  };
+  _fbDb.collection("leaderboard").doc(_fbUser.uid).set(entry,{merge:true}).catch(()=>{});
+}
+
+
 /* ===== Equipment Affixes (Diablo-style) ===== */
 const AFFIX_PREFIX=[
   {id:"swift",zh:"迅捷的",en:"Swift",stat:"spd",val:1,w:20},
@@ -2193,6 +2282,16 @@ function closeLeaderboard(){
   const ov=document.getElementById("lb-overlay");
   if(ov)ov.classList.remove("show");
 }
+async function loadCloudLeaderboard(modeFilter){
+  if(!_fbDb){initFirebase();}
+  if(!_fbDb)return null;
+  try{
+    const snap=await _fbDb.collection("leaderboard").orderBy("fame","desc").limit(30).get();
+    const list=[];
+    snap.forEach(doc=>{const d=doc.data();list.push(d);});
+    return list;
+  }catch(e){return null;}
+}
 function toggleLeaderboard(){
   const ov=document.getElementById("lb-overlay");
   if(!ov)return;
@@ -2484,12 +2583,12 @@ function endBattle(win){
     while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.4);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(t("等級","Lv")+G.level+t("！AP上限+1","! AP max +1"));}addLog(t("升級！Lv.","Level up! Lv.")+G.level);}
     // 成就檢查
     if(!G.achievements)G.achievements={};
-    if(!G.achievements.firstKill){G.achievements.firstKill=true;G.gold+=50;G.fame+=10;addLog(t("🏆 成就達成：初戰告捷！+50G +10名氣","🏆 Achievement: First Victory! +50G +10 Fame"));}
-    if(G.level>=10 && !G.achievements.reach10){G.achievements.reach10=true;G.gold+=100;G.permanentAtk+=3;addLog(t("🏆 成就達成：等級10！+100G 永久攻擊+3","🏆 Achievement: Level 10! +100G Permanent ATK+3"));}
-    if(G.level>=20 && !G.achievements.reach20){G.achievements.reach20=true;G.gold+=200;G.permanentAtk+=5;addLog(t("🏆 成就達成：等級20！+200G 永久攻擊+5","🏆 Achievement: Level 20! +200G Permanent ATK+5"));}
-    if(G.level>=30 && !G.achievements.reach30){G.achievements.reach30=true;G.gold+=300;G.permanentAtk+=8;addLog(t("🏆 成就達成：等級30！+300G 永久攻擊+8","🏆 Achievement: Level 30! +300G Permanent ATK+8"));}
-    if(G.pets && G.pets.length>=3 && !G.achievements.pet3){G.achievements.pet3=true;G.inv.skillStone=(G.inv.skillStone||0)+3;addLog(t("🏆 成就達成：擁有3隻寵物！+3強化石","🏆 Achievement: Own 3 pets! +3 Enhance Stones"));}
-    if(G.fame>=100 && !G.achievements.fame100){G.achievements.fame100=true;G.gold+=150;addLog(t("🏆 成就達成：名氣達到100！+150G","🏆 Achievement: Fame 100! +150G"));}
+    if(!G.achievements.firstKill){G.gold+=50;G.fame+=10;unlockAch("firstKill");}
+    if(G.level>=10 && !G.achievements.reach10){G.gold+=100;G.permanentAtk+=3;unlockAch("reach10");}
+    if(G.level>=20 && !G.achievements.reach20){G.gold+=200;G.permanentAtk+=5;unlockAch("reach20");}
+    if(G.level>=30 && !G.achievements.reach30){G.gold+=300;G.permanentAtk+=8;unlockAch("reach30");}
+    if(G.pets && G.pets.length>=3 && !G.achievements.pet3){G.inv.skillStone=(G.inv.skillStone||0)+3;unlockAch("pet3");}
+    if(G.fame>=100 && !G.achievements.fame100){G.gold+=150;unlockAch("fame100");}
     if(battle.key)delete G.mapEvents[battle.key];
     if(G.activePet){G.activePet.bond=Math.min(100,(G.activePet.bond||0)+3);G.activePet.exp=(G.activePet.exp||0)+12;while(G.activePet.exp>=(G.activePet.maxExp||30)){G.activePet.exp-=G.activePet.maxExp||30;G.activePet.level++;G.activePet.maxExp=Math.floor((G.activePet.maxExp||30)*1.3);G.activePet.atk+=2;G.activePet.maxHp+=6;G.activePet.hp=G.activePet.maxHp;addLog(t("寵物 ","Pet ")+tn(G.activePet.name)+t(" 升級！"," leveled up!"));}}
     
@@ -2549,7 +2648,7 @@ function endBattle(win){
         G.permanentAtk += 10;
         G.equip.weapon = {name:"魔王劍",atk:25,rarity:4,enhance:0,spd:2};
         addLog(t("🎉 首次擊敗魔王！獲得稱號「勇者」、攻擊+10、紅色武器「魔王劍」","🎉 First Demon Lord defeat! Title Hero, ATK+10, red weapon Demon Blade"));
-        grantPrestigePoints(G.diff==="hard"?3:G.diff==="easy"?1:2,t("擊敗魔王","Demon Lord"));
+        grantPrestigePoints(G.diff==="hard"?3:G.diff==="easy"?1:2,t("擊敗魔王","Demon Lord"));unlockAch("firstBoss");cloudSubmitScore();
         if(G.mode==="endless"){
           addLeaderboardEntry({name:G.name||"Hero",day:G.day,diff:G.diff||"normal",mode:"endless",job:G.job||"",date:Date.now()});
         }
@@ -2616,7 +2715,7 @@ function endBattle(win){
       G.pets.push(eggPet);
       if(!G.activePet)G.activePet=eggPet;
       addLog(t("遺跡通關！獲得龍蛋（幼龍）、龍鱗碎片、永久攻擊 +","Ruins cleared! Dragon Egg (Baby Dragon), Scale Shards, Permanent ATK +")+gain);
-      grantPrestigePoints(2,t("遺跡通關","Ruins clear"));
+      grantPrestigePoints(2,t("遺跡通關","Ruins clear"));unlockAch("ruins100");unlockAch("firstBoss");
       showScreen("ruins-screen");
       updateUI();saveGame();renderRuins();
       setTimeout(()=>playRuinsClearCinema(G.ruinsClears), 400);
@@ -2802,7 +2901,7 @@ function submitQ(i){
   G.gold += c.reward;
   G.fame += c.fame || 5;
   G.commissions.splice(i,1);
-  addLog(t("完成任務 +","Quest complete +")+c.reward+"G");if(G.tutorialStep===5){G.tutorialStep=6;updateObjective();uiAlert(t("新手引導完成！\n接下來自由探索：森林、鐵匠、魔王窟都在等你。","Tutorial complete!\nExplore freely: forest, blacksmith, and the Demon Lair await."));}
+  addLog(t("完成任務 +","Quest complete +")+c.reward+"G");if(G.tutorialStep===5){G.tutorialStep=6;updateObjective();unlockAch("tutorial");uiAlert(t("新手引導完成！\n接下來自由探索：森林、鐵匠、魔王窟都在等你。","Tutorial complete!\nExplore freely: forest, blacksmith, and the Demon Lair await."));}
   updateUI();saveGame();renderQuests();
 }
 function abandonQ(i){uiConfirm(t("放棄任務？","Abandon quest?")).then(ok=>{if(!ok)return;G.commissions.splice(i,1);saveGame();renderQuests();});}
@@ -2883,6 +2982,7 @@ function craftEquip(slot,r){
   if(slot==="shoes"){item.spd=1+Math.floor(r/2);}
   applyAffixToItem(item);
   G.equip[slot]=item;
+  unlockAch("craft1");
   addLog(`合成【${item.name}】成功！${item.atk?`ATK+${item.atk}`:""}${item.def?`DEF+${item.def}`:""}${item.spd?`SPD+${item.spd}`:""}`);
   updateUI();saveGame();
   if(document.getElementById("blacksmith-screen").classList.contains("active"))renderBlacksmith();
@@ -3005,6 +3105,7 @@ function exploreRuins(){
   }
   G.ruinsFloor++;
   G.ruinsHighest=Math.max(G.ruinsHighest,G.ruinsFloor);
+  if(G.ruinsHighest>=50)unlockAch("ruins50");
   updateUI();saveGame();renderRuins();
 }
 function openRuinsChest(f){
