@@ -525,9 +525,9 @@ body{padding:6px;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));min-
 
 <script>
 const DIFF={
-easy:{stamina:22,monMul:0.75,bossMin:320,bossAtk:22,bossSpd:11,bossGateLv:5,bossGateDay:5},
-normal:{stamina:18,monMul:1,bossMin:480,bossAtk:30,bossSpd:12,bossGateLv:7,bossGateDay:8},
-hard:{stamina:12,monMul:1.35,bossMin:720,bossAtk:42,bossSpd:13,bossGateLv:9,bossGateDay:12}
+easy:{stamina:24,monMul:0.7,bossMin:300,bossAtk:20,bossSpd:11,bossGateLv:5,bossGateDay:5},
+normal:{stamina:20,monMul:1,bossMin:520,bossAtk:32,bossSpd:12,bossGateLv:7,bossGateDay:8},
+hard:{stamina:14,monMul:1.4,bossMin:780,bossAtk:45,bossSpd:14,bossGateLv:10,bossGateDay:12}
 };
 const JOBS={
 warrior:{hp:30,atk:2,def:5,mp:10,ap:0,spd:8,crit:5,skills:[["重擊","強力攻擊",12],["堅守","提升防禦",8]]},
@@ -573,7 +573,7 @@ function showScreen(id){
   if(id==="shop-screen")renderShop();
   if(id==="alchemy-screen")renderAlchemy();
   if(id==="blacksmith-screen")renderBlacksmith();
-  if(id==="skill-screen")renderSkillEnhance();
+  if(id==="skill-screen")renderSkillTree();
   if(id==="ruins-screen")renderRuins();
   if(id==="prestige-screen")renderPrestige();
   if(id==="achieve-screen")renderAchievements();
@@ -882,6 +882,16 @@ function tn(name){
   }
   return NAMES[s]||s;
 }
+function itemName(id){
+  const map={potion:"回血藥",mpPotion:"回魔藥",food:"食物",capture:"捕捉球",revive:"復活藥",
+    atkPotion:"加攻藥",defPotion:"加防藥",townScroll:"回城卷",skillStone:"強化石",
+    ore:"礦石",herb:"藥草",wood:"木材"};
+  return tn(map[id]||id);
+}
+function raritySpan(name, rar){
+  const r=Math.max(0,Math.min(4,rar|0));
+  return `<span class="r${r}">${name}</span>`;
+}
 function rarityName(i){return t(["一般","優良","稀有","史詩","傳說"][i],["Common","Fine","Rare","Epic","Legendary"][i]);}
 function fameTitleOf(fame,heroTitle){
   if(heroTitle)return tn(heroTitle);
@@ -1185,7 +1195,7 @@ function applyLanguage(){
       if(id==="shop-screen")renderShop();
       if(id==="alchemy-screen")renderAlchemy();
       if(id==="blacksmith-screen")renderBlacksmith();
-      if(id==="skill-screen")renderSkillEnhance();
+      if(id==="skill-screen")renderSkillTree();
       if(id==="ruins-screen")renderRuins();
   if(id==="prestige-screen")renderPrestige();
   if(id==="achieve-screen")renderAchievements();
@@ -1330,7 +1340,11 @@ function resetAll(){uiConfirm(t("確定重置所有存檔？","Reset all saves?"
 /* toggleLang redefined above */
 
 function addLog(msg){eventLog.push(msg);if(eventLog.length>30)eventLog.shift();renderLog();}
-function renderLog(){const el=document.getElementById("event-log");if(!el)return;el.innerHTML=eventLog.slice(-8).map(m=>`<div>${m}</div>`).join("");el.scrollTop=el.scrollHeight;}
+function renderLog(){
+  const el=document.getElementById("event-log");
+  if(!el)return;
+  el.innerHTML=eventLog.slice(0,10).map(m=>`<div class="small">${m}</div>`).join("")||"";
+}
 
 function updateUI(){
   try{applyGuideHighlight();}catch(e){}
@@ -1534,7 +1548,7 @@ function checkTile(){
   }
   if(tile.type==="village"){
     dialogue(t("回到村莊","Back at the village"));
-    let btns=`<button class="btn" onclick="rest()">${t("旅店休息","Inn Rest")}</button><button class="btn" onclick="showScreen('shop-screen')">🛒 ${t("商店","Shop")}</button>`;
+    let btns=`<button class="btn" onclick="rest()">${t("旅店休息","Inn Rest")}</button><button class="btn" onclick="showScreen('shop-screen')">🛒 ${t("商店","Shop")}</button><button class="btn" onclick="cookFood()">${t("烹飪食物","Cook Food")} (12G)</button>`;
     if(G.level>=3||G.day>=3)btns+=`<button class="btn" onclick="showScreen('guild-screen')">🏛️ ${t("工會","Guild")}</button>`;
     if(G.level>=5||G.day>=5)btns+=`<button class="btn" onclick="showScreen('alchemy-screen')">🧪 ${t("煉藥所","Alchemy")}</button>`;
     if(G.level>=7||G.day>=7)btns+=`<button class="btn" onclick="showScreen('blacksmith-screen')">⚒️ ${t("鐵匠舖","Blacksmith")}</button>`;
@@ -1560,12 +1574,26 @@ function checkTile(){
 }
 function dialogue(msg){document.getElementById("dialogue").textContent=msg;}
 
-function gather(k){if(G.stamina<1||G.ap<1)return;G.stamina--;G.ap--;const ev=G.mapEvents[k];if(!G.inv[ev.res])G.inv[ev.res]={};let rar=0;{const rr=Math.random();if(rr>0.992)rar=4;else if(rr>0.96)rar=3;else if(rr>0.88)rar=2;else if(rr>0.62)rar=1;}G.inv[ev.res][rar]=(G.inv[ev.res][rar]||0)+1;addLog(t("採集到 ","Gathered ")+tn(ev.res)+"（"+rarityName(rar)+"）");let gexp=6+Math.floor(Math.random()*5);if(G.level<5)gexp=Math.floor(gexp*1.6);if(G.level<3)gexp+=4;if(G.firstGather){G.firstGather=false;gexp+=12;G.gold+=15;addLog(t("🌟 第一次採集獎勵！","🌟 First gather bonus!"));sfxRare();if(G.tutorialStep===1){G.tutorialStep=2;updateObjective();}}G.exp+=gexp;addLog(t("採集獲得 EXP+","Gather EXP+")+gexp);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.35);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;G.gold+=10+G.level*2;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(t("等級","Lv")+G.level+t("！AP上限+1","! AP max +1"));}sfxLevel();addLog(t("升級！Lv.","Level up! Lv.")+G.level+t("（獎勵金幣）"," (gold bonus)"));if(G.tutorialStep&&G.tutorialStep<3&&G.level>=3){G.tutorialStep=3;updateObjective();uiAlert(t("太好了！你達到 3 級。\n回村莊解鎖工會，接第一個任務吧。","Great! You reached Lv.3.\nReturn to the village to unlock the Guild and take a quest."));}}if(ev.res==="ore"&&Math.random()<0.12){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog(t("採礦幸運獲得強化石！","Lucky mining: Enhance Stone!"));}if(Math.random()<0.4){G.stamina=Math.min(G.maxStamina,G.stamina+1);addLog(t("採集時恢復了 1 體力","Gathering restored 1 STA"));}sfxGather();updateQuestProgress("Gather",1);ensureAch();G.stats.gathers=(G.stats.gathers||0)+1;if(G.stats.gathers>=50)unlockAch("gather50");delete G.mapEvents[k];updateUI();saveGame();checkTile();}
-function gatherFixed(type){if(G.stamina<1||G.ap<1)return;G.stamina--;G.ap--;const map={mine:"ore",herb:"herb",wood:"wood"};const res=map[type];let rar=0;{const rr=Math.random();if(rr>0.992)rar=4;else if(rr>0.96)rar=3;else if(rr>0.88)rar=2;else if(rr>0.62)rar=1;}if(!G.inv[res])G.inv[res]={};G.inv[res][rar]=(G.inv[res][rar]||0)+1;addLog(t("採集到 ","Gathered ")+tn(res)+"（"+rarityName(rar)+"）");let gexp=6+Math.floor(Math.random()*5);if(G.level<5)gexp=Math.floor(gexp*1.6);if(G.level<3)gexp+=4;if(G.firstGather){G.firstGather=false;gexp+=12;G.gold+=15;addLog(t("🌟 第一次採集獎勵！","🌟 First gather bonus!"));sfxRare();if(G.tutorialStep===1){G.tutorialStep=2;}}G.exp+=gexp;addLog(t("採集獲得 EXP+","Gather EXP+")+gexp);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.35);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;G.gold+=10+G.level*2;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(t("等級","Lv")+G.level+t("！AP上限+1","! AP max +1"));}addLog(t("升級！Lv.","Level up! Lv.")+G.level+t("（獎勵金幣）"," (gold bonus)"));}if(type==="mine"&&Math.random()<0.12){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog(t("採礦幸運獲得強化石！","Lucky mining: Enhance Stone!"));}if(Math.random()<0.4){G.stamina=Math.min(G.maxStamina,G.stamina+1);addLog(t("採集時恢復了 1 體力","Gathering restored 1 STA"));}updateQuestProgress("Gather",1);updateUI();saveGame();}
+function checkApEmpty(){
+  if(G.ap>0)return false;
+  const hasFood=(G.inv.food||0)>0;
+  uiAlert(t("行動值（AP）已用完！\n","Action Points (AP) depleted!\n")+(hasFood?t("可使用背包中的「食物」回復 AP，或按 ⏭ 進入下一日。","Use Food in bag to restore AP, or press ⏭ for next day."):t("按 ⏭ 進入下一日回復 AP，或回村莊休息／買食物。","Press ⏭ for next day, or rest / buy food in village.")));
+  return true;
+}
+function gather(k){if(G.stamina<1||G.ap<1){if(G.ap<1)checkApEmpty();else uiAlert(t("體力不足","Not enough STA"));return;}G.stamina--;G.ap--;const ev=G.mapEvents[k];if(!G.inv[ev.res])G.inv[ev.res]={};let rar=0;{const rr=Math.random();if(rr>0.992)rar=4;else if(rr>0.96)rar=3;else if(rr>0.88)rar=2;else if(rr>0.62)rar=1;}G.inv[ev.res][rar]=(G.inv[ev.res][rar]||0)+1;addLog(t("採集到 ","Gathered ")+raritySpan(itemName(ev.res)+"（"+rarityName(rar)+"）",rar));let gexp=6+Math.floor(Math.random()*5);if(G.level<5)gexp=Math.floor(gexp*1.6);if(G.level<3)gexp+=4;if(G.firstGather){G.firstGather=false;gexp+=12;G.gold+=15;addLog(t("🌟 第一次採集獎勵！","🌟 First gather bonus!"));sfxRare();if(G.tutorialStep===1){G.tutorialStep=2;updateObjective();}}G.exp+=gexp;addLog(t("採集獲得 EXP+","Gather EXP+")+gexp);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.35);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;G.gold+=10+G.level*2;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(t("等級","Lv")+G.level+t("！AP上限+1","! AP max +1"));}sfxLevel();addLog(t("升級！Lv.","Level up! Lv.")+G.level+t("（獎勵金幣）"," (gold bonus)"));if(G.tutorialStep&&G.tutorialStep<3&&G.level>=3){G.tutorialStep=3;updateObjective();uiAlert(t("太好了！你達到 3 級。\n回村莊解鎖工會，接第一個任務吧。","Great! You reached Lv.3.\nReturn to the village to unlock the Guild and take a quest."));}}if(ev.res==="ore"&&Math.random()<0.12){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog(t("採礦幸運獲得強化石！","Lucky mining: Enhance Stone!"));}if(Math.random()<0.4){G.stamina=Math.min(G.maxStamina,G.stamina+1);addLog(t("採集時恢復了 1 體力","Gathering restored 1 STA"));}
+  if(Math.random()<0.12){G.inv.food=(G.inv.food||0)+1;addLog(t("發現可食用的食材 +1 食物","Found edible supplies +1 Food"));}
+  sfxGather();updateQuestProgress("Gather",1);ensureAch();G.stats.gathers=(G.stats.gathers||0)+1;if(G.stats.gathers>=50)unlockAch("gather50");delete G.mapEvents[k];updateUI();saveGame();checkTile();}
+function gatherFixed(type){if(G.stamina<1||G.ap<1){if(G.ap<1)checkApEmpty();else uiAlert(t("體力不足","Not enough STA"));return;}G.stamina--;G.ap--;const map={mine:"ore",herb:"herb",wood:"wood"};const res=map[type];let rar=0;{const rr=Math.random();if(rr>0.992)rar=4;else if(rr>0.96)rar=3;else if(rr>0.88)rar=2;else if(rr>0.62)rar=1;}if(!G.inv[res])G.inv[res]={};G.inv[res][rar]=(G.inv[res][rar]||0)+1;addLog(t("採集到 ","Gathered ")+raritySpan(itemName(res)+"（"+rarityName(rar)+"）",rar));let gexp=6+Math.floor(Math.random()*5);if(G.level<5)gexp=Math.floor(gexp*1.6);if(G.level<3)gexp+=4;if(G.firstGather){G.firstGather=false;gexp+=12;G.gold+=15;addLog(t("🌟 第一次採集獎勵！","🌟 First gather bonus!"));sfxRare();if(G.tutorialStep===1){G.tutorialStep=2;}}G.exp+=gexp;addLog(t("採集獲得 EXP+","Gather EXP+")+gexp);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.35);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;G.gold+=10+G.level*2;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(t("等級","Lv")+G.level+t("！AP上限+1","! AP max +1"));}addLog(t("升級！Lv.","Level up! Lv.")+G.level+t("（獎勵金幣）"," (gold bonus)"));}if(type==="mine"&&Math.random()<0.12){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog(t("採礦幸運獲得強化石！","Lucky mining: Enhance Stone!"));}if(Math.random()<0.4){G.stamina=Math.min(G.maxStamina,G.stamina+1);addLog(t("採集時恢復了 1 體力","Gathering restored 1 STA"));}updateQuestProgress("Gather",1);updateUI();saveGame();}
+function cookFood(){
+  if(G.gold<12){uiAlert(t("金幣不足","Not enough gold"));return;}
+  G.gold-=12;G.inv.food=(G.inv.food||0)+2;
+  addLog(t("在村莊廚房烹飪，獲得食物 ×2","Cooked in the village kitchen: Food ×2"));
+  updateUI();saveGame();checkTile();
+}
 function rest(){G.hp=G.maxHp;G.mp=G.maxMp;G.stamina=G.maxStamina;G.ap=G.maxAp;addLog(t("休息完畢，狀態全回復。","Rested — fully recovered."));nextDay();}
 
 /* ========== 戰鬥（含魔王狂暴） ========== */
-function startForestBattle(){if(G.ap<1){dialogue(t("AP不足","Not enough AP"));return;}G.ap--;const m=MONSTERS[Math.floor(Math.random()*MONSTERS.length)];const mul=(0.9+Math.random()*0.35)*(1+G.day*0.018)*DIFF[G.diff].monMul;startBattleWith({name:m.name,icon:m.icon,hp:Math.floor(m.hp*mul),atk:Math.floor(m.atk*mul),spd:m.spd,rarity:m.r,maxHp:0});}
+function startForestBattle(){if(G.ap<1){checkApEmpty();return;}G.ap--;const m=MONSTERS[Math.floor(Math.random()*MONSTERS.length)];const mul=(0.9+Math.random()*0.35)*(1+G.day*0.018)*DIFF[G.diff].monMul;startBattleWith({name:m.name,icon:m.icon,hp:Math.floor(m.hp*mul),atk:Math.floor(m.atk*mul),spd:m.spd,rarity:m.r,maxHp:0});}
 function startBossBattle(){
   const d=DIFF[G.diff]||DIFF.normal;
   // Soft gate: under-level / too early day → heavy warning (still allow, but boss is brutal)
@@ -1891,6 +1919,111 @@ window._bossCinema = null;
 
 
 
+
+
+/* ===== Skill Tree ===== */
+const SKILL_TREE={
+  warrior:[
+    {id:"w1",zh:"裂地斬",en:"Earth Split",mp:14,fx:"heavy",reqLv:1,cost:0,desc_zh:"重擊強化版",desc_en:"Stronger heavy"},
+    {id:"w2",zh:"鐵壁",en:"Iron Wall",mp:10,fx:"guard",reqLv:5,cost:1,desc_zh:"防禦並反擊",desc_en:"Guard + counter"},
+    {id:"w3",zh:"狂怒",en:"Fury",mp:16,fx:"heavy",reqLv:10,cost:2,desc_zh:"高傷害重擊",desc_en:"High damage slam"},
+    {id:"w4",zh:"戰吼",en:"War Cry",mp:12,fx:"guard",reqLv:15,cost:3,desc_zh:"減傷並小幅回MP",desc_en:"Mitigate + MP"}
+  ],
+  mage:[
+    {id:"m1",zh:"火球",en:"Fireball",mp:15,fx:"fireball",reqLv:1,cost:0,desc_zh:"火焰傷害",desc_en:"Fire damage"},
+    {id:"m2",zh:"冰霜",en:"Frost",mp:12,fx:"frost",reqLv:5,cost:1,desc_zh:"傷害並減速",desc_en:"Damage + slow"},
+    {id:"m3",zh:"雷擊",en:"Thunder",mp:18,fx:"fireball",reqLv:10,cost:2,desc_zh:"強力魔法",desc_en:"Strong magic"},
+    {id:"m4",zh:"魔力護盾",en:"Mana Shield",mp:14,fx:"guard",reqLv:15,cost:3,desc_zh:"法師防禦姿態",desc_en:"Mage guard"}
+  ],
+  ranger:[
+    {id:"r1",zh:"精準射擊",en:"Precise Shot",mp:10,fx:"precise",reqLv:1,cost:0,desc_zh:"穩定傷害",desc_en:"Reliable hit"},
+    {id:"r2",zh:"陷阱",en:"Trap",mp:14,fx:"trap",reqLv:5,cost:1,desc_zh:"持續傷害",desc_en:"DoT"},
+    {id:"r3",zh:"連射",en:"Rapid Fire",mp:16,fx:"precise",reqLv:10,cost:2,desc_zh:"高傷害射擊",desc_en:"Strong shot"},
+    {id:"r4",zh:"毒箭",en:"Poison Arrow",mp:15,fx:"trap",reqLv:15,cost:3,desc_zh:"更強DoT",desc_en:"Stronger DoT"}
+  ],
+  assassin:[
+    {id:"a1",zh:"背刺",en:"Backstab",mp:11,fx:"backstab",reqLv:1,cost:0,desc_zh:"高暴擊",desc_en:"High crit"},
+    {id:"a2",zh:"影襲",en:"Shadow Strike",mp:13,fx:"shadow",reqLv:5,cost:1,desc_zh:"先手連擊",desc_en:"First strike"},
+    {id:"a3",zh:"暗殺",en:"Assassinate",mp:18,fx:"backstab",reqLv:10,cost:2,desc_zh:"超高暴擊傷害",desc_en:"Huge crit"},
+    {id:"a4",zh:"影分身",en:"Shadow Clone",mp:15,fx:"shadow",reqLv:15,cost:3,desc_zh:"雙重攻擊",desc_en:"Double hit"}
+  ]
+};
+function renderSkillTree(){
+  const el=document.getElementById("skill-content");
+  if(!el)return;
+  const job=G.job||"warrior";
+  const tree=SKILL_TREE[job]||SKILL_TREE.warrior;
+  if(!G.skillUnlocked)G.skillUnlocked={};
+  // ensure starting skill unlocked
+  if(tree[0])G.skillUnlocked[tree[0].id]=true;
+  let h=`<div class="small mb-6">${t("職業技能樹","Class Skill Tree")} · ${t("強化石：","Stones: ")}${G.inv.skillStone||0} · Lv.${G.level}</div>`;
+  tree.forEach((node,idx)=>{
+    const unlocked=!!G.skillUnlocked[node.id];
+    const can= !unlocked && G.level>=node.reqLv && (G.inv.skillStone||0)>=node.cost && (idx===0||G.skillUnlocked[tree[idx-1].id]);
+    const equipped=G.skills.some(s=>s.treeId===node.id||s.name===node.zh);
+    h+=`<div class="list-item" style="opacity:${unlocked||can?1:0.5}">
+      <div><b>${t(node.zh,node.en)}</b> <span class="small">MP ${node.mp} · Lv${node.reqLv}+</span>
+        <div class="small">${t(node.desc_zh,node.desc_en)}</div>
+        <div class="small">${unlocked?t("✅ 已學會","✅ Learned"):t("消耗強化石：","Cost stones: ")+node.cost}</div>
+      </div><div>`;
+    if(!unlocked && can) h+=`<button class="btn small" onclick="unlockSkillNode('${node.id}')">${t("解鎖","Unlock")}</button>`;
+    else if(unlocked && !equipped) h+=`<button class="btn small" onclick="equipSkillNode('${node.id}')">${t("裝備到戰鬥","Equip")}</button>`;
+    else if(equipped) h+=`<span class="tag green">${t("戰鬥中","In battle")}</span>`;
+    else h+=`<span class="small">${t("未達成條件","Locked")}</span>`;
+    h+=`</div></div>`;
+  });
+  // enhance existing
+  h+=`<div class="small mt-6 mb-6">=== ${t("已裝備技能強化","Enhance equipped skills")} ===</div>`;
+  if(!G.skills.length)h+=`<div class="small">${t("尚未裝備技能","No skills equipped")}</div>`;
+  G.skills.forEach((sk,i)=>{
+    h+=`<div class="list-item"><span>${tn(sk.name)} +${sk.enhance||0} (MP ${sk.mp})</span>
+      <button class="btn small" onclick="enhanceSkill(${i})">${t("強化","Enhance")} (1${t("石","stone")})</button></div>`;
+  });
+  el.innerHTML=h;
+}
+function unlockSkillNode(id){
+  const job=G.job||"warrior";
+  const tree=SKILL_TREE[job]||[];
+  const node=tree.find(n=>n.id===id);
+  if(!node)return;
+  if((G.inv.skillStone||0)<node.cost){uiAlert(t("強化石不足","Not enough stones"));return;}
+  if(G.level<node.reqLv){uiAlert(t("等級不足","Level too low"));return;}
+  G.inv.skillStone-=node.cost;
+  if(!G.skillUnlocked)G.skillUnlocked={};
+  G.skillUnlocked[id]=true;
+  // auto equip if under 3 skills
+  if(G.skills.length<3){
+    G.skills.push({name:node.zh,desc:node.desc_zh,mp:node.mp,enhance:0,effect:node.fx,treeId:node.id});
+    addLog(t("解鎖並裝備技能【","Unlocked & equipped 【")+t(node.zh,node.en)+"】");
+  }else{
+    addLog(t("解鎖技能【","Unlocked 【")+t(node.zh,node.en)+t("】（可手動裝備）","】 (equip manually)"));
+  }
+  sfxRare&&sfxRare();
+  saveGame();renderSkillTree();updateUI();
+}
+function equipSkillNode(id){
+  const job=G.job||"warrior";
+  const node=(SKILL_TREE[job]||[]).find(n=>n.id===id);
+  if(!node)return;
+  if(G.skills.some(s=>s.treeId===id))return;
+  if(G.skills.length>=3){
+    // replace last
+    G.skills[2]={name:node.zh,desc:node.desc_zh,mp:node.mp,enhance:0,effect:node.fx,treeId:node.id};
+  }else{
+    G.skills.push({name:node.zh,desc:node.desc_zh,mp:node.mp,enhance:0,effect:node.fx,treeId:node.id});
+  }
+  addLog(t("裝備技能【","Equipped 【")+t(node.zh,node.en)+"】");
+  saveGame();renderSkillTree();
+}
+function enhanceSkill(i){
+  const sk=G.skills[i]; if(!sk)return;
+  if((G.inv.skillStone||0)<1){uiAlert(t("強化石不足","Not enough stones"));return;}
+  G.inv.skillStone--;
+  sk.enhance=(sk.enhance||0)+1;
+  if(sk.mp>5&&sk.enhance%2===0)sk.mp--;
+  addLog(t("強化技能【","Enhanced 【")+tn(sk.name)+t("】至 +","】 to +")+sk.enhance);
+  saveGame();renderSkillTree();updateUI();
+}
 
 /* ===== Achievements ===== */
 const ACH_DEF=[
@@ -2606,7 +2739,7 @@ function endBattle(win){
       if(rar>=3)G.dropPity.mat=0; else G.dropPity.mat++;
       if(!G.inv[res])G.inv[res]={};
       G.inv[res][rar]=(G.inv[res][rar]||0)+1;
-      addLog(t("掉落 ","Dropped ")+tn(res)+"（"+rarityName(rar)+"）!");
+      addLog(t("掉落 ","Dropped ")+raritySpan(itemName(res)+"（"+rarityName(rar)+"）",rar)+"!");
     }
     if(Math.random()<0.12){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog(t("掉落強化石！","Dropped Enhance Stone!"));}
     if(Math.random()<0.16){
@@ -2759,7 +2892,12 @@ function endBattle(win){
 function updateQuestProgress(type,amount){
   G.commissions.forEach(c=>{
     if(c.type===type && c.progress < c.need){
+      const before=c.progress;
       c.progress = Math.min(c.need, c.progress + amount);
+      if(before<c.need && c.progress>=c.need){
+        addLog(t("✅ 任務「","✅ Quest 「")+tn(c.name||c.type)+t("」已可提交！回工會交任務。","」 ready! Turn in at the Guild."));
+        uiAlert(t("任務進度已滿！\n回村莊工會提交任務領取獎勵。","Quest progress full!\nReturn to the Guild to claim rewards."));
+      }
     }
   });
 }
@@ -2771,7 +2909,7 @@ function renderPets(){
     return;
   }
   const foodCost=15;
-  el.innerHTML=`<div class="small mb-6">${t("出戰寵物會加攻防速；絆越高，特技與援護越強。","Active pet boosts your power; higher Bond = stronger skills & support.")}</div>`+
+  el.innerHTML=`<div class="small mb-6">${t("金幣：","Gold: ")}<b style="color:var(--gold)">${G.gold}</b> · ${t("強化石：","Stones: ")}<b>${G.inv.skillStone||0}</b><br>${t("出戰寵物會加攻防速；絆越高，特技與援護越強。","Active pet boosts your power; higher Bond = stronger skills & support.")}</div>`+
   G.pets.map((p,i)=>{
     const bond=p.bond||0;
     const active=G.activePet&&G.activePet.id===p.id;
@@ -2915,15 +3053,15 @@ function renderShop(){
     const items=[{id:"potion",n:"回血藥",p:25},{id:"mpPotion",n:"回MP藥",p:30},{id:"food",n:"食物",p:20},{id:"capture",n:"捕捉球",p:40},{id:"revive",n:"復活藥",p:80},{id:"townScroll",n:"回城卷",p:50},{id:"skillStone",n:"強化石",p:60}];
     items.forEach(s=>{
       const own=(G.inv[s.id]||0);
-      h+=`<div class="list-item"><span>${tn(s.n)} - ${s.p}G（${t("擁有","Own")} ${own}）</span><button class="btn small" onclick="buy('${s.id}',${s.p})">${t("購買","Buy")}</button></div>`;
+      h+=`<div class="list-item"><span class="r0">${tn(s.n)}</span> - ${s.p}G（${t("擁有","Own")} ${own}）</span><button class="btn small" onclick="buy('${s.id}',${s.p})">${t("購買","Buy")}</button></div>`;
     });
   }else if(shopMode==="sell"){
     h+=`<div class="small">=== ${t("賣出列表","Sell List")} ===</div>`;
-    ["potion","mpPotion","food","capture","revive","atkPotion","defPotion","townScroll"].forEach(id=>{
+    ["potion","mpPotion","food","capture","revive","atkPotion","defPotion","townScroll","skillStone"].forEach(id=>{
       const n=G.inv[id]||0;
       if(n>0){
         const sellP=id==="revive"?40:id==="capture"?20:15;
-        h+=`<div class="list-item"><span>${tn(id)} ×${n}　${t("可賣","Sell")} ${sellP}G/${t("個","ea")}</span><button class="btn small" onclick="sellItem('${id}',${sellP})">${t("賣出1個","Sell 1")}</button></div>`;
+        h+=`<div class="list-item"><span>${itemName(id)} ×${n}　${t("可賣","Sell")} ${sellP}G/${t("個","ea")}</span><button class="btn small" onclick="sellItem('${id}',${sellP})">${t("賣出1個","Sell 1")}</button></div>`;
       }
     });
     if(G.fishInv){for(let fn in G.fishInv){const n=G.fishInv[fn];if(n>0){const sellP=fn==="傳說魚"?150:fn==="金魚"?60:fn==="鱸魚"?30:fn==="鯉魚"?15:8;h+=`<div class="list-item"><span>🐟 ${tn(fn)} ×${n}　${t("可賣","Sell")} ${sellP}G/${t("個","ea")}</span><button class="btn small" onclick="sellFish('${fn}',${sellP})">${t("賣出1個","Sell 1")}</button></div>`;}}}
@@ -2933,9 +3071,9 @@ function renderShop(){
   }
   document.getElementById("shop-content").innerHTML=h;
 }
-function buy(id,p){if(G.gold<p){uiAlert(t("金幣不足","Not enough gold"));return;}G.gold-=p;G.inv[id]=(G.inv[id]||0)+1;addLog(t("購買了 ","Bought ")+tn(id));updateUI();saveGame();renderShop();}
-function sellItem(id,p){if((G.inv[id]||0)<=0)return;G.inv[id]--;G.gold+=p;addLog(`賣出 ${id} +${p}G`);updateUI();saveGame();renderShop();}
-function sellFish(fn,p){if(!G.fishInv||(G.fishInv[fn]||0)<=0)return;G.fishInv[fn]--;G.gold+=p;addLog(`賣出 ${fn} +${p}G`);updateUI();saveGame();renderShop();}
+function buy(id,p){if(G.gold<p){uiAlert(t("金幣不足","Not enough gold"));return;}G.gold-=p;G.inv[id]=(G.inv[id]||0)+1;addLog(t("購買了 ","Bought ")+itemName(id));updateUI();saveGame();renderShop();}
+function sellItem(id,p){if((G.inv[id]||0)<=0)return;G.inv[id]--;G.gold+=p;addLog(t("賣出 ","Sold ")+itemName(id)+` +${p}G`);updateUI();saveGame();renderShop();}
+function sellFish(fn,p){if(!G.fishInv||(G.fishInv[fn]||0)<=0)return;G.fishInv[fn]--;G.gold+=p;addLog(t("賣出 ","Sold ")+tn(fn)+` +${p}G`);updateUI();saveGame();renderShop();}
 
 function renderAlchemy(){
   const herb0=G.inv.herb[0]||0, herb1=G.inv.herb[1]||0;
@@ -2953,7 +3091,7 @@ function renderAlchemy(){
   });
   document.getElementById("alchemy-content").innerHTML=h;
 }
-function craftPotion(id,cost,r){if((G.inv.herb[r]||0)<cost){uiAlert(t("藥草不足","Not enough herbs"));return;}G.inv.herb[r]-=cost;G.inv[id]=(G.inv[id]||0)+1;addLog(t("合成了 ","Crafted ")+tn(id));saveGame();renderAlchemy();}
+function craftPotion(id,cost,r){if((G.inv.herb[r]||0)<cost){uiAlert(t("藥草不足","Not enough herbs"));return;}G.inv.herb[r]-=cost;G.inv[id]=(G.inv[id]||0)+1;addLog(t("合成了 ","Crafted ")+itemName(id));saveGame();renderAlchemy();}
 
 let smithTab="weapon";
 function renderBlacksmith(){
@@ -2989,8 +3127,8 @@ function craftEquip(slot,r){
   else renderBag();
 }
 
-function renderSkillEnhance(){if(!G.skills.length){document.getElementById("skill-content").innerHTML=`<div class='small'>${t("無技能","No skills")}</div>`;return;}let h=`<div class="small">${t("強化石：","Enhance Stone: ")}${G.inv.skillStone||0}<br>${t("強化提升技能威力／效果。","Enhance raises skill power/effects.")}</div>`;G.skills.forEach((sk,i)=>{h+=`<div class="list-item"><div><b>${tn(sk.name)}</b> +${sk.enhance||0} (MP ${sk.mp})<div class="small">${tn(sk.desc||"")}</div></div><button class="btn small" onclick="enhSkill(${i})">${t("強化","Enhance")}</button></div>`;});document.getElementById("skill-content").innerHTML=h;}
-function enhSkill(i){if((G.inv.skillStone||0)<1){uiAlert(t("強化石不足","Not enough Enhance Stones"));return;}G.inv.skillStone--;if(Math.random()<Math.max(0.2,0.95-(G.skills[i].enhance||0)*0.1)){G.skills[i].enhance=(G.skills[i].enhance||0)+1;addLog(tn(G.skills[i].name)+t(" 強化成功"," enhanced"));}else addLog(t("強化失敗","Enhance failed"));saveGame();renderSkillEnhance();}
+function renderSkillTree(){if(!G.skills.length){document.getElementById("skill-content").innerHTML=`<div class='small'>${t("無技能","No skills")}</div>`;return;}let h=`<div class="small">${t("強化石：","Enhance Stone: ")}${G.inv.skillStone||0}<br>${t("強化提升技能威力／效果。","Enhance raises skill power/effects.")}</div>`;G.skills.forEach((sk,i)=>{h+=`<div class="list-item"><div><b>${tn(sk.name)}</b> +${sk.enhance||0} (MP ${sk.mp})<div class="small">${tn(sk.desc||"")}</div></div><button class="btn small" onclick="enhSkill(${i})">${t("強化","Enhance")}</button></div>`;});document.getElementById("skill-content").innerHTML=h;}
+function enhSkill(i){if((G.inv.skillStone||0)<1){uiAlert(t("強化石不足","Not enough Enhance Stones"));return;}G.inv.skillStone--;if(Math.random()<Math.max(0.2,0.95-(G.skills[i].enhance||0)*0.1)){G.skills[i].enhance=(G.skills[i].enhance||0)+1;addLog(tn(G.skills[i].name)+t(" 強化成功"," enhanced"));}else addLog(t("強化失敗","Enhance failed"));saveGame();renderSkillTree();}
 
 function leaveRuins(){
   showScreen("game-screen");
@@ -3046,7 +3184,7 @@ function startRuinsFloorBoss(f){
   addBLog(t("第 ","Floor ")+f+t(" 層守衛出現！"," guardian appears!"));
 }
 function exploreRuins(){
-  if(G.ap<1){uiAlert(t("AP不足","Not enough AP"));return;}
+  if(G.ap<1){checkApEmpty();return;}
   G.ap--;
   const f=G.ruinsFloor;
   // Floor 100: Ancient Dragon
@@ -3129,7 +3267,7 @@ function renderBag(){
   let h="";
   if(bagTab==="cons"){
     const nameMap={potion:"回血藥",mpPotion:"回魔藥",food:"食物",capture:"捕捉球",revive:"復活藥",atkPotion:"加攻藥",defPotion:"加防藥",townScroll:"回城卷",skillStone:"強化石"};
-    ["potion","mpPotion","food","capture","revive","atkPotion","defPotion","townScroll","skillStone"].forEach(k=>{const n=G.inv[k]||0;if(n>0)h+=`<div class="list-item"><span>${tn(nameMap[k]||k)} ×${n}</span><button class="btn small" onclick="useBag('${k}')">${t("使用","Use")}</button></div>`;});
+    ["potion","mpPotion","food","capture","revive","atkPotion","defPotion","townScroll","skillStone"].forEach(k=>{const n=G.inv[k]||0;if(n>0)h+=`<div class="list-item"><span>${itemName(k)} ×${n}</span><button class="btn small" onclick="useBag('${k}')">${t("使用","Use")}</button></div>`;});
     if(G.fishInv){for(let fn in G.fishInv){if(G.fishInv[fn]>0)h+=`<div class="list-item"><span>🐟 ${tn(fn)} ×${G.fishInv[fn]}</span></div>`;}}
   }
   else if(bagTab==="equip"){
@@ -3158,7 +3296,7 @@ function renderBag(){
   }
   document.getElementById("bag-content").innerHTML=h||`<div class='small'>${t("空","Empty")}</div>`;
 }
-function useBag(id){if((G.inv[id]||0)<=0)return;G.inv[id]--;if(id==="potion")G.hp=Math.min(G.maxHp,G.hp+50);if(id==="mpPotion")G.mp=Math.min(G.maxMp,G.mp+30);if(id==="food"){G.ap=Math.min(G.maxAp,G.ap+4);G.stamina=Math.min(G.maxStamina,G.stamina+3);}if(id==="townScroll"){G.x=2;G.y=2;addLog(t("使用回城卷","Used Town Scroll"));renderMap();checkTile();}updateUI();saveGame();renderBag();}
+function useBag(id){if((G.inv[id]||0)<=0)return;G.inv[id]--;if(id==="potion")G.hp=Math.min(G.maxHp,G.hp+50);if(id==="mpPotion")G.mp=Math.min(G.maxMp,G.mp+30);if(id==="food"){G.ap=Math.min(G.maxAp,G.ap+5);G.stamina=Math.min(G.maxStamina,G.stamina+4);addLog(t("吃了食物，AP+5 STA+4","Ate food: AP+5 STA+4"));}if(id==="townScroll"){G.x=2;G.y=2;addLog(t("使用回城卷","Used Town Scroll"));renderMap();checkTile();}updateUI();saveGame();renderBag();}
 function unequip(slot){if(!G.equip[slot])return;addLog(t("卸下了 ","Unequipped ")+tn(G.equip[slot].name));G.equip[slot]=null;updateUI();saveGame();renderBag();}
 function enhanceEquip(slot){
   const e=G.equip[slot];
@@ -3212,6 +3350,7 @@ function doFish(){
   if(!G.fishCaught)G.fishCaught={};
   G.fishCaught[f.n]=true;
   addLog(t("釣到【","Caught 【")+tn(f.n)+"】!");
+  if(Math.random()<0.25){G.inv.food=(G.inv.food||0)+1;addLog(t("順便處理成食物 +1","Also prepared as Food +1"));}
   if(!G.achievements.fish10){let total=0;for(let k in G.fishInv)total+=G.fishInv[k];if(total>=10){G.achievements.fish10=true;G.gold+=80;addLog(t("🏆 成就：釣到10條魚！+80G","🏆 Achievement: Caught 10 fish! +80G"));}}
   updateUI();saveGame();checkTile();
 }
