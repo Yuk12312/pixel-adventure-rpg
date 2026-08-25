@@ -5,6 +5,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Pixel Adventure RPG v30</title>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <style>
 :root{--bg:#0f0f0f;--panel:#1a1a1a;--border:#444;--accent:#00e6b8;--gold:#ffcc00;--danger:#ff5555;--text:#eee}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -288,6 +291,13 @@ body{padding:6px;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));min-
 .lb-empty{color:#777;text-align:center;padding:28px 12px;font-size:12px;line-height:1.5}
 .lb-footer{padding:10px 12px 12px;border-top:1px solid #222;background:#101010}
 .lb-footer .btn{margin:0;text-align:center}
+
+.auth-box{background:#141414;border:1px solid #444;border-radius:12px;padding:16px;max-width:360px;width:100%;margin:0 auto}
+.auth-box input{width:100%;padding:10px;margin:6px 0;background:#222;border:1px solid #555;color:#eee;border-radius:6px;font-family:inherit}
+.auth-status{font-size:11px;color:#8cf;margin:6px 0;min-height:16px}
+.talent-node{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;background:#1a1a1a;border:1px solid #444;border-radius:6px;margin-bottom:4px}
+.talent-node.owned{border-color:var(--gold);background:#2a2410}
+.affix-tag{color:#7ec8ff;font-size:10px}
 </style>
 </head>
 <body>
@@ -298,10 +308,32 @@ body{padding:6px;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));min-
   <button class="menu-btn" onclick="startNewGame()">▶ New Game</button>
   <button class="menu-btn" onclick="showSaveSlots('load')">📂 Load</button>
   <button class="menu-btn" onclick="toggleLeaderboard()">🏆 Leaderboard</button>
+  <button class="menu-btn" onclick="showAuthScreen()">👤 Account / Cloud</button>
   <button class="menu-btn" onclick="showScreen('setting-screen')">⚙️ Settings</button>
   <div id="save-slots" style="display:none;margin-top:10px"></div>
 </div>
 
+<div id="auth-screen" class="screen">
+  <h2 class="text-center mb-6">👤 Account</h2>
+  <div class="auth-box">
+    <div class="auth-status" id="auth-status">Not signed in</div>
+    <input id="auth-email" type="email" placeholder="Email" autocomplete="email">
+    <input id="auth-pass" type="password" placeholder="Password" autocomplete="current-password">
+    <button class="menu-btn" onclick="fbSignIn()">Sign In</button>
+    <button class="menu-btn" onclick="fbSignUp()">Create Account</button>
+    <button class="btn" onclick="fbSignInGoogle()">🔵 Google Sign-In</button>
+    <button class="btn" onclick="fbSignOut()">Sign Out</button>
+    <button class="btn" onclick="cloudSave()">☁️ Save to Cloud</button>
+    <button class="btn" onclick="cloudLoad()">☁️ Load from Cloud</button>
+    <div class="small mt-6" id="auth-hint">Firebase: set window.FIREBASE_CONFIG in page (apiKey, projectId...).</div>
+  </div>
+  <button class="btn mt-6" onclick="showScreen('title-screen')">← Back</button>
+</div>
+<div id="prestige-screen" class="screen">
+  <h2 class="text-center mb-6">⭐ Prestige Talents</h2>
+  <div id="prestige-content"></div>
+  <button class="btn mt-6" onclick="backFromMenu()">← Back</button>
+</div>
 <div id="name-screen" class="screen">
   <h2 class="text-center mb-6">Enter Adventurer Name</h2>
   <input id="player-name-input" type="text" maxlength="12" placeholder="Enter name..." style="width:100%;padding:12px;background:#222;border:1px solid #666;color:#eee;border-radius:6px;font-size:16px;margin-bottom:12px;font-family:inherit">
@@ -409,6 +441,7 @@ body{padding:6px;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));min-
   <button class="menu-btn" onclick="saveGame();uiAlert(t('已存檔至目前欄位','Saved to current slot'));showScreen('game-screen')">💾 Save</button>
   <button class="menu-btn" onclick="showSaveSlots('save')">💾 Save to Other Slot</button>
   <button class="menu-btn" onclick="showScreen('setting-screen')">⚙️ Settings</button>
+  <button class="menu-btn" onclick="showScreen('prestige-screen');renderPrestige()">⭐ Prestige</button>
   <button class="menu-btn" onclick="showScreen('game-screen')">← Back to Game</button>
   <button class="btn danger mt-6" onclick="uiConfirm(t('返回主界面？','Return to title?')).then(ok=>{if(ok)showScreen('title-screen')})">🏠 Title Screen</button>
 </div>
@@ -495,6 +528,8 @@ function showScreen(id){
   if(id==="blacksmith-screen")renderBlacksmith();
   if(id==="skill-screen")renderSkillEnhance();
   if(id==="ruins-screen")renderRuins();
+  if(id==="prestige-screen")renderPrestige();
+  if(id==="auth-screen"){initFirebase();updateAuthUI();}
 }
 function backFromMenu(){G?showScreen("game-screen"):showScreen("title-screen");}
 function openMenu(){showScreen("ingame-menu");}
@@ -523,6 +558,7 @@ function confirmSkill(idx){
   generateAvailableQuests();
   G.storyStage=0;
   G.tutorialStep=1;G.firstGather=true;G.firstBattle=true;
+  applyPrestigeToNewGame();
   // Day-1 guaranteed nearby resources for fast first feedback
   G.mapEvents={
     "1,2":{type:"res",res:"herb",icon:"🌿",rarity:0},
@@ -971,7 +1007,8 @@ function applyLanguage(){
   if(tbs[0])tbs[0].textContent=t("▶ 開始遊戲","▶ New Game");
   if(tbs[1])tbs[1].textContent=t("📂 讀取存檔","📂 Load");
   if(tbs[2])tbs[2].textContent=t("🏆 排行榜","🏆 Leaderboard");
-  if(tbs[3])tbs[3].textContent=t("⚙️ 設定","⚙️ Settings");
+  if(tbs[3])tbs[3].textContent=t("👤 帳號／雲存","👤 Account / Cloud");
+  if(tbs[4])tbs[4].textContent=t("⚙️ 設定","⚙️ Settings");
   // Name screen
   const ns=document.querySelector("#name-screen h2");
   if(ns)ns.textContent=t("輸入你的冒險者名字","Enter Adventurer Name");
@@ -1096,6 +1133,8 @@ function applyLanguage(){
       if(id==="blacksmith-screen")renderBlacksmith();
       if(id==="skill-screen")renderSkillEnhance();
       if(id==="ruins-screen")renderRuins();
+  if(id==="prestige-screen")renderPrestige();
+  if(id==="auth-screen"){initFirebase();updateAuthUI();}
       if(id==="game-screen")checkTile();
       if(id==="battle-screen"){updateBattleUI();if(battle)renderPlayerActions();}
     }
@@ -1111,6 +1150,7 @@ function toggleLang(){
   LANG=LANG==="zh"?"en":"zh";
   localStorage.setItem("pixel_rpg_lang",LANG);
   applyLanguage();
+try{initFirebase();}catch(e){}
   // subtle feedback without blocking alert if possible
   const msg=LANG==="zh"?"已切換為中文":"Switched to English";
   if(document.getElementById("dialogue")&&document.querySelector("#game-screen.active")){
@@ -1255,9 +1295,9 @@ function updateUI(){
   if(document.getElementById("weather"))document.getElementById("weather").textContent=tn(G.weather||"晴天");
   if(document.getElementById("season"))document.getElementById("season").textContent=tn(G.season||"春");
 }
-function totalAtk(){return G.atk+G.permanentAtk+(G.equip.weapon?.atk||0)+(G.activePet?.atk||0)+(G.heroTitle?5:0)+(G.heroLevel||0)*2;}
+function totalAtk(){let a=G.atk+G.permanentAtk+(G.equip.weapon?.atk||0)+(G.activePet?.atk||0)+(G.heroTitle?5:0)+(G.heroLevel||0)*2;const p=G.prestige||getPrestige();if(p.atkPct)a=Math.floor(a*(1+p.atkPct));return a;}
 function totalDef(){let d=G.def;["head","body","pants","shoes","necklace","ring"].forEach(s=>{if(G.equip[s])d+=(G.equip[s].def||0);});return d;}
-function totalSpd(){let s=G.spd+(G.activePet?.spd||0);["head","body","pants","shoes","necklace","ring","weapon"].forEach(slot=>{if(G.equip[slot]&&G.equip[slot].spd)s+=G.equip[slot].spd;});return s;}
+function totalSpd(){let s=G.spd+(G.activePet?.spd||0);["head","body","pants","shoes","necklace","ring","weapon"].forEach(slot=>{if(G.equip[slot]&&G.equip[slot].spd)s+=G.equip[slot].spd;});const p=G.prestige||getPrestige();if(p.spd)s+=p.spd;return s;}
 
 function getTile(k){const f={"2,2":{icon:"🏘️",type:"village"},"2,1":{icon:"🌲",type:"forest"},"3,2":{icon:"💀",type:"boss"},"0,0":{icon:"⛏️",type:"mine"},"4,0":{icon:"🌿",type:"herb"},"0,4":{icon:"🪵",type:"wood"},"4,4":{icon:"🕳️",type:"ruins"},"1,2":{icon:"🎣",type:"fish"},"3,1":{icon:"🎣",type:"fish"}};return f[k];}
 function renderMap(){
@@ -1567,7 +1607,9 @@ function renderPlayerActions(){
   h+=`<button class="btn" onclick="pAct('item')">🧪 ${t("道具","Items")}</button>`;
   if(G.pets.filter(p=>p.hp>0).length>1)h+=`<button class="btn" onclick="pAct('switch')">${t("換寵物","Switch Pet")}</button>`;
   h+=`<button class="btn" onclick="pAct('capture')">${t("捕捉","Capture")}</button>`;
+  h+=`<button class="btn ${window._autoBattle?"guide-pulse":""}" onclick="toggleAutoBattle()">${window._autoBattle?t("■ 自動中","■ Auto ON"):t("▶ 自動","▶ Auto")}</button>`;
   document.getElementById("battle-actions").innerHTML=h;
+  if(window._autoBattle){setTimeout(tryAutoBattleTick, 420);}
 }
 function pAct(a,skillIdx){
   if(a==="attack"){
@@ -1576,7 +1618,7 @@ function pAct(a,skillIdx){
     // Bond bonus from active pet
     if(G.activePet&&G.activePet.hp>0){d+=Math.floor((G.activePet.bond||0)/10);}
     let crit=false;
-    if(Math.random()*100<G.crit){d=Math.floor(d*1.75);crit=true;sfxCrit();screenShake();floatDmg(d,"crit");floatText("CRIT!","crit");addBLog("💥 "+t("暴擊！","Critical!"));}else{sfxHit();floatDmg(d,"dmg");}
+    if(Math.random()*100<(G.crit+totalCritBonus())){d=Math.floor(d*1.75);crit=true;sfxCrit();screenShake();floatDmg(d,"crit");floatText("CRIT!","crit");addBLog("💥 "+t("暴擊！","Critical!"));}else{sfxHit();floatDmg(d,"dmg");}
     flashEnemy();
     // Glance / solid hit flavor
     const pct=battle.enemy.maxHp?Math.min(100,Math.floor(d/battle.enemy.maxHp*100)):0;
@@ -1585,6 +1627,8 @@ function pAct(a,skillIdx){
     else if(pct>=25) addBLog(t("重擊！造成 ","Heavy hit! ")+d+t(" 傷害（連擊x"," dmg (combo x")+G.combo+")");
     else addBLog(t("你造成 ","You deal ")+d+t(" 傷害（連擊x"," dmg (combo x")+G.combo+")");
     if(battle.enemy.hp>0&&battle.enemy.hp<=battle.enemy.maxHp*0.3) addBLog(t("敵方已呈弱勢…","The enemy looks weakened..."));
+    const ls=totalLifesteal();
+    if(ls>0){const heal=Math.max(1,Math.floor(d*ls));G.hp=Math.min(G.maxHp,G.hp+heal);floatDmg(heal,"heal");}
   }
   else if(a==="defend"){
     battle.playerDef=true;G.combo=0;
@@ -1779,6 +1823,246 @@ function salvageGear(item, silent){
 
 
 window._bossCinema = null;
+
+
+
+/* ===== Equipment Affixes (Diablo-style) ===== */
+const AFFIX_PREFIX=[
+  {id:"swift",zh:"迅捷的",en:"Swift",stat:"spd",val:1,w:20},
+  {id:"sharp",zh:"鋒利的",en:"Sharp",stat:"atk",val:3,w:25},
+  {id:"sturdy",zh:"堅固的",en:"Sturdy",stat:"def",val:2,w:25},
+  {id:"lucky",zh:"幸運的",en:"Lucky",stat:"crit",val:3,w:12},
+  {id:"vampiric",zh:"吸血的",en:"Vampiric",stat:"lifesteal",val:0.04,w:8},
+  {id:"brutal",zh:"殘暴的",en:"Brutal",stat:"atk",val:5,w:10}
+];
+const AFFIX_SUFFIX=[
+  {id:"of_power",zh:"力量",en:"of Power",stat:"atk",val:2,w:25},
+  {id:"of_guard",zh:"守護",en:"of Guard",stat:"def",val:2,w:25},
+  {id:"of_wind",zh:"疾風",en:"of Wind",stat:"spd",val:1,w:18},
+  {id:"of_focus",zh:"專注",en:"of Focus",stat:"crit",val:4,w:12},
+  {id:"of_leech",zh:"汲取",en:"of Leech",stat:"lifesteal",val:0.03,w:8},
+  {id:"of_glory",zh:"榮耀",en:"of Glory",stat:"atk",val:4,w:8}
+];
+function pickAffix(pool){
+  const total=pool.reduce((s,a)=>s+a.w,0);
+  let r=Math.random()*total;
+  for(const a of pool){r-=a.w;if(r<=0)return a;}
+  return pool[0];
+}
+function applyAffixToItem(item){
+  if(!item||item.rarity<1)return item;
+  // Fine+: 45% prefix; Rare+: also suffix chance
+  if(Math.random()<0.45+item.rarity*0.08){
+    const p=pickAffix(AFFIX_PREFIX);
+    item.prefix=p.id;
+    item.prefixName=p.zh;
+    if(p.stat==="atk")item.atk=(item.atk||0)+p.val;
+    if(p.stat==="def")item.def=(item.def||0)+p.val;
+    if(p.stat==="spd")item.spd=(item.spd||0)+p.val;
+    if(p.stat==="crit")item.crit=(item.crit||0)+p.val;
+    if(p.stat==="lifesteal")item.lifesteal=(item.lifesteal||0)+p.val;
+    const en=p.en, zh=p.zh;
+    // rebuild display name: prefix + base
+    const base=item.name.replace(/^(一般|優良|稀有|史詩|傳說)/,"");
+    item.name=(RARITY[item.rarity]||"")+zh+base;
+    item.affixEn=(item.affixEn||"")+en+" ";
+  }
+  if(item.rarity>=2&&Math.random()<0.35+item.rarity*0.1){
+    const s=pickAffix(AFFIX_SUFFIX);
+    item.suffix=s.id;
+    if(s.stat==="atk")item.atk=(item.atk||0)+s.val;
+    if(s.stat==="def")item.def=(item.def||0)+s.val;
+    if(s.stat==="spd")item.spd=(item.spd||0)+s.val;
+    if(s.stat==="crit")item.crit=(item.crit||0)+s.val;
+    if(s.stat==="lifesteal")item.lifesteal=(item.lifesteal||0)+s.val;
+    item.name=item.name+(LANG==="zh"?("·"+s.zh):(" "+s.en));
+  }
+  return item;
+}
+function totalLifesteal(){
+  let v=0;
+  Object.values(G.equip||{}).forEach(e=>{if(e&&e.lifesteal)v+=e.lifesteal;});
+  return v;
+}
+function totalCritBonus(){
+  let v=0;
+  Object.values(G.equip||{}).forEach(e=>{if(e&&e.crit)v+=e.crit;});
+  return v+(G.prestige&&G.prestige.crit?G.prestige.crit:0);
+}
+
+/* ===== Auto Battle ===== */
+window._autoBattle=false;
+function toggleAutoBattle(){
+  window._autoBattle=!window._autoBattle;
+  if(window._autoBattle){
+    addBLog(t("▶ 自動戰鬥開啟","▶ Auto-battle ON"));
+    tryAutoBattleTick();
+  }else{
+    addBLog(t("■ 自動戰鬥關閉","■ Auto-battle OFF"));
+    renderPlayerActions();
+  }
+}
+function tryAutoBattleTick(){
+  if(!window._autoBattle||!battle)return;
+  if(document.getElementById("battle-screen")&&!document.getElementById("battle-screen").classList.contains("active"))return;
+  // Only act on player turn when buttons shown
+  const box=document.getElementById("battle-actions");
+  if(!box||!box.innerHTML.includes("onclick=\"pAct"))return;
+  // Heal if low
+  if(G.hp<G.maxHp*0.3&&(G.inv.potion||0)>0){pAct("item");setTimeout(()=>{if(window._autoBattle)useItem("potion");},200);return;}
+  // Skill if MP ok
+  if(G.skills&&G.skills[0]&&G.mp>=G.skills[0].mp&&Math.random()<0.45){pAct("skill",0);return;}
+  pAct("attack");
+}
+
+/* ===== Prestige / Hero Marks ===== */
+const PRESTIGE_TALENTS=[
+  {id:"atk5",cost:1,zh:"+5% 全局攻擊",en:"+5% Global ATK",apply:p=>{p.atkPct=(p.atkPct||0)+0.05;}},
+  {id:"hp10",cost:1,zh:"+10% 最大生命",en:"+10% Max HP",apply:p=>{p.hpPct=(p.hpPct||0)+0.10;}},
+  {id:"startPot",cost:1,zh:"開局藥水+2",en:"Start +2 potions",apply:p=>{p.startPot=(p.startPot||0)+2;}},
+  {id:"crit3",cost:2,zh:"暴擊率+3",en:"Crit +3",apply:p=>{p.crit=(p.crit||0)+3;}},
+  {id:"gather",cost:1,zh:"採集EXP+20%",en:"Gather EXP +20%",apply:p=>{p.gatherExp=(p.gatherExp||0)+0.2;}},
+  {id:"gold10",cost:2,zh:"金幣+10%",en:"Gold +10%",apply:p=>{p.goldPct=(p.goldPct||0)+0.1;}},
+  {id:"spd1",cost:2,zh:"速度+1",en:"+1 SPD",apply:p=>{p.spd=(p.spd||0)+1;}},
+  {id:"stone",cost:2,zh:"開局強化石+1",en:"Start +1 stone",apply:p=>{p.startStone=(p.startStone||0)+1;}}
+];
+function getPrestige(){
+  try{return JSON.parse(localStorage.getItem("pixel_rpg_prestige")||"{}");}catch(e){return {};}
+}
+function savePrestige(p){localStorage.setItem("pixel_rpg_prestige",JSON.stringify(p));}
+function prestigePoints(){const p=getPrestige();return p.points||0;}
+function grantPrestigePoints(n,reason){
+  const p=getPrestige();
+  p.points=(p.points||0)+n;
+  p.totalEarned=(p.totalEarned||0)+n;
+  savePrestige(p);
+  addLog&&addLog(t("⭐ 英雄印記 +","⭐ Hero Marks +")+n+(reason?("（"+reason+"）"):""));
+}
+function applyPrestigeToNewGame(){
+  const p=getPrestige();
+  if(!G)return;
+  G.prestige=Object.assign({},p);
+  if(p.atkPct)G.permanentAtk+=Math.floor(15*p.atkPct);
+  if(p.hpPct){const b=Math.floor(G.maxHp*p.hpPct);G.maxHp+=b;G.hp+=b;}
+  if(p.spd)G.spd+=p.spd;
+  if(p.crit)G.crit=(G.crit||0)+p.crit;
+  if(p.startPot){G.inv.potion=(G.inv.potion||0)+p.startPot;}
+  if(p.startStone){G.inv.skillStone=(G.inv.skillStone||0)+p.startStone;}
+}
+function renderPrestige(){
+  const p=getPrestige();
+  const owned=p.owned||{};
+  let h=`<div class="small mb-6">${t("英雄印記（永久）","Hero Marks (permanent)")}: <b>${p.points||0}</b> · ${t("累計","Earned")} ${p.totalEarned||0}</div>`;
+  h+=`<div class="small mb-6">${t("打贏魔王或遺跡通關可獲得印記。天賦跨存檔永久生效。","Beat Demon Lord or clear Ruins for marks. Talents persist across saves.")}</div>`;
+  PRESTIGE_TALENTS.forEach(tal=>{
+    const has=!!owned[tal.id];
+    h+=`<div class="talent-node ${has?"owned":""}"><div><b>${t(tal.zh,tal.en)}</b><div class="small">${t("消耗","Cost")} ${tal.cost}</div></div>`;
+    if(has)h+=`<span class="tag gold">${t("已擁有","Owned")}</span>`;
+    else h+=`<button class="btn small" onclick="buyTalent('${tal.id}')">${t("解鎖","Unlock")}</button>`;
+    h+=`</div>`;
+  });
+  document.getElementById("prestige-content").innerHTML=h;
+}
+function buyTalent(id){
+  const tal=PRESTIGE_TALENTS.find(x=>x.id===id);if(!tal)return;
+  const p=getPrestige();
+  p.owned=p.owned||{};
+  if(p.owned[id])return;
+  if((p.points||0)<tal.cost){uiAlert(t("印記不足","Not enough marks"));return;}
+  p.points-=tal.cost;
+  p.owned[id]=true;
+  tal.apply(p);
+  savePrestige(p);
+  sfxRare&&sfxRare();
+  renderPrestige();
+  uiAlert(t("已解鎖天賦（新遊戲生效更完整）","Talent unlocked (strongest on new runs)"));
+}
+
+/* ===== Firebase Auth + Cloud Save ===== */
+window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null;
+// Optional: paste your config here:
+// window.FIREBASE_CONFIG={apiKey:"...",authDomain:"...",projectId:"...",storageBucket:"...",messagingSenderId:"...",appId:"..."};
+let _fb=null,_fbAuth=null,_fbDb=null,_fbUser=null;
+function initFirebase(){
+  if(_fb)return !!_fbAuth;
+  if(!window.FIREBASE_CONFIG||!window.FIREBASE_CONFIG.apiKey){
+    return false;
+  }
+  try{
+    _fb=firebase.initializeApp(window.FIREBASE_CONFIG);
+    _fbAuth=firebase.auth();
+    _fbDb=firebase.firestore();
+    _fbAuth.onAuthStateChanged(u=>{
+      _fbUser=u;
+      updateAuthUI();
+    });
+    return true;
+  }catch(e){console.warn(e);return false;}
+}
+function updateAuthUI(){
+  const el=document.getElementById("auth-status");
+  if(!el)return;
+  if(!window.FIREBASE_CONFIG||!window.FIREBASE_CONFIG.apiKey){
+    el.textContent=t("未設定 Firebase Config","Firebase config not set");
+    return;
+  }
+  if(_fbUser)el.textContent=t("已登入：","Signed in: ")+(_fbUser.email||_fbUser.uid);
+  else el.textContent=t("未登入","Not signed in");
+}
+function showAuthScreen(){
+  initFirebase();
+  updateAuthUI();
+  showScreen("auth-screen");
+  applyLanguage&&applyLanguage();
+}
+function fbSignUp(){
+  if(!initFirebase()){uiAlert(t("請先在頁面設定 FIREBASE_CONFIG","Set FIREBASE_CONFIG first"));return;}
+  const email=document.getElementById("auth-email").value.trim();
+  const pass=document.getElementById("auth-pass").value;
+  if(!email||!pass){uiAlert(t("請輸入電郵與密碼","Enter email and password"));return;}
+  _fbAuth.createUserWithEmailAndPassword(email,pass)
+    .then(()=>uiAlert(t("註冊成功","Account created")))
+    .catch(e=>uiAlert(e.message||String(e)));
+}
+function fbSignIn(){
+  if(!initFirebase()){uiAlert(t("請先在頁面設定 FIREBASE_CONFIG","Set FIREBASE_CONFIG first"));return;}
+  const email=document.getElementById("auth-email").value.trim();
+  const pass=document.getElementById("auth-pass").value;
+  _fbAuth.signInWithEmailAndPassword(email,pass)
+    .then(()=>uiAlert(t("登入成功","Signed in")))
+    .catch(e=>uiAlert(e.message||String(e)));
+}
+function fbSignInGoogle(){
+  if(!initFirebase()){uiAlert(t("請先在頁面設定 FIREBASE_CONFIG","Set FIREBASE_CONFIG first"));return;}
+  const provider=new firebase.auth.GoogleAuthProvider();
+  _fbAuth.signInWithPopup(provider)
+    .then(()=>uiAlert(t("Google 登入成功","Google sign-in OK")))
+    .catch(e=>uiAlert(e.message||String(e)));
+}
+function fbSignOut(){
+  if(!_fbAuth)return;
+  _fbAuth.signOut().then(()=>uiAlert(t("已登出","Signed out")));
+}
+function cloudSave(){
+  if(!initFirebase()||!_fbUser){uiAlert(t("請先登入","Please sign in first"));return;}
+  if(!G){uiAlert(t("沒有進行中的遊戲","No active game"));return;}
+  const data={game:G,eventLog:eventLog.slice(-20),availableQuests,updatedAt:Date.now(),name:G.name,day:G.day};
+  _fbDb.collection("saves").doc(_fbUser.uid).set(data)
+    .then(()=>uiAlert(t("已雲端存檔","Cloud save OK")))
+    .catch(e=>uiAlert(e.message||String(e)));
+}
+function cloudLoad(){
+  if(!initFirebase()||!_fbUser){uiAlert(t("請先登入","Please sign in first"));return;}
+  _fbDb.collection("saves").doc(_fbUser.uid).get().then(doc=>{
+    if(!doc.exists){uiAlert(t("沒有雲端存檔","No cloud save"));return;}
+    const data=doc.data();
+    G=data.game;eventLog=data.eventLog||[];availableQuests=data.availableQuests||[];
+    currentSlot=currentSlot||1;
+    saveGame();
+    showScreen("game-screen");updateUI();renderMap();checkTile();updateObjective();
+    uiAlert(t("已載入雲端存檔","Cloud save loaded"));
+  }).catch(e=>uiAlert(e.message||String(e)));
+}
 
 
 /* ===== Leaderboard (local) ===== */
@@ -2092,7 +2376,7 @@ function bossCinemaNext(){
 
 function endBattle(win){
   if(win){sfxWin();floatText(t("勝利!","WIN!"),"crit");
-    let exp=25+Math.floor(G.day/2),gold=20+Math.floor(G.day/3);
+    let exp=25+Math.floor(G.day/2),gold=20+Math.floor(G.day/3);const _pg=G.prestige||getPrestige();if(_pg.goldPct)gold=Math.floor(gold*(1+_pg.goldPct));
     if(G.level<5){exp=Math.floor(exp*1.4);gold+=10;}
     if(G.firstBattle){G.firstBattle=false;exp+=20;gold+=25;G.fame+=5;addLog(t("🌟 初戰獎勵！","🌟 First battle bonus!"));}
     if(battle.enemy&&battle.enemy.elite){exp=Math.floor(exp*1.8);gold=Math.floor(gold*1.8);G.fame+=5;addLog(t("精英擊破獎勵！","Elite bonus rewards!"));}
@@ -2143,6 +2427,7 @@ function endBattle(win){
       else item.def=2+rar*2;
       if(slot==="shoes")item.spd=1+Math.floor(rar/2);
       if(slot==="weapon"&&rar>=3)item.spd=(item.spd||0)+1;
+      applyAffixToItem(item);
       if(!G.equip[slot] || (G.equip[slot].rarity||0)<rar){
         // salvage old if replacing
         if(G.equip[slot]) salvageGear(G.equip[slot], true);
@@ -2166,6 +2451,7 @@ function endBattle(win){
         G.permanentAtk += 10;
         G.equip.weapon = {name:"魔王劍",atk:25,rarity:4,enhance:0,spd:2};
         addLog(t("🎉 首次擊敗魔王！獲得稱號「勇者」、攻擊+10、紅色武器「魔王劍」","🎉 First Demon Lord defeat! Title Hero, ATK+10, red weapon Demon Blade"));
+        grantPrestigePoints(G.diff==="hard"?3:G.diff==="easy"?1:2,t("擊敗魔王","Demon Lord"));
         if(G.mode==="endless"){
           addLeaderboardEntry({name:G.name||"Hero",day:G.day,diff:G.diff||"normal",mode:"endless",job:G.job||"",date:Date.now()});
         }
@@ -2175,6 +2461,7 @@ function endBattle(win){
         G.heroTitle = "勇者+" + G.heroLevel;
         G.permanentAtk += 10;
         addLog(t("🎉 再次擊敗魔王！稱號更新為「","🎉 Demon Lord defeated again! Title ")+tn(G.heroTitle)+t("」、攻擊+10"," , ATK+10"));
+        grantPrestigePoints(1,t("再戰魔王","Demon again"));
       }
       // Delay cinema slightly so battle UI can settle
       setTimeout(()=>playBossVictoryCinema(firstKill), 350);
@@ -2231,6 +2518,7 @@ function endBattle(win){
       G.pets.push(eggPet);
       if(!G.activePet)G.activePet=eggPet;
       addLog(t("遺跡通關！獲得龍蛋（幼龍）、龍鱗碎片、永久攻擊 +","Ruins cleared! Dragon Egg (Baby Dragon), Scale Shards, Permanent ATK +")+gain);
+      grantPrestigePoints(2,t("遺跡通關","Ruins clear"));
       showScreen("ruins-screen");
       updateUI();saveGame();renderRuins();
       setTimeout(()=>playRuinsClearCinema(G.ruinsClears), 400);
@@ -2491,10 +2779,11 @@ function craftEquip(slot,r){
   const oreNeed=c[0]+r, goldNeed=c[1]+r*40;
   if((G.inv.ore[r]||0)<oreNeed||G.gold<goldNeed){uiAlert(t("材料或金幣不足（需要","Not enough materials/gold (need ")+rarityName(r)+t("礦）"," ore)"));return;}
   G.inv.ore[r]-=oreNeed;G.gold-=goldNeed;
-  let item={name:RARITY[r]+(slot==="weapon"?"劍":slot==="head"?"頭盔":slot==="body"?"鎧甲":slot==="pants"?"護腿":slot==="shoes"?"靴":slot==="necklace"?"項鏈":"戒指"),rarity:r,enhance:0};
+  let item={name:RARITY[r]+(slot==="weapon"?"劍":slot==="head"?"頭盔":slot==="body"?"鎧甲":slot==="pants"?"護腿":slot==="shoes"?"靴":slot==="necklace"?"項鏈":"戒指"),rarity:r,enhance:0,slot:slot};
   if(slot==="weapon"||slot==="ring"){item.atk=8+r*6;}
   else {item.def=3+r*3;}
   if(slot==="shoes"){item.spd=1+Math.floor(r/2);}
+  applyAffixToItem(item);
   G.equip[slot]=item;
   addLog(`合成【${item.name}】成功！${item.atk?`ATK+${item.atk}`:""}${item.def?`DEF+${item.def}`:""}${item.spd?`SPD+${item.spd}`:""}`);
   updateUI();saveGame();
@@ -2646,7 +2935,7 @@ function renderBag(){
     ["head","body","pants","shoes","weapon","necklace","ring"].forEach(s=>{
       const e=G.equip[s];
       let info=e?`<span class="r${e.rarity||0}">${tn(e.name)}</span> +${e.enhance||0}`:t("空","Empty");
-      if(e){if(e.atk)info+=` ATK+${e.atk}`;if(e.def)info+=` DEF+${e.def}`;if(e.spd)info+=` SPD+${e.spd}`;}
+      if(e){if(e.atk)info+=` ATK+${e.atk}`;if(e.def)info+=` DEF+${e.def}`;if(e.spd)info+=` SPD+${e.spd}`;if(e.crit)info+=` CRIT+${e.crit}`;if(e.lifesteal)info+=` LS${Math.floor(e.lifesteal*100)}%`;}
       h+=`<div class="list-item"><span>${slotNames[s]||s}: ${info}</span>${e?`<button class="btn small" onclick="enhanceEquip('${s}')">${t("強化","Enhance")}</button><button class="btn small danger" onclick="unequip('${s}')">${t("卸下","Unequip")}</button>`:""}</div>`;
     });
   }
