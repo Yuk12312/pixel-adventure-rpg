@@ -325,7 +325,7 @@ body{padding:6px;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));min-
     <button class="btn" onclick="fbSignOut()">Sign Out</button>
     <button class="btn" onclick="cloudSave()">☁️ Save to Cloud</button>
     <button class="btn" onclick="cloudLoad()">☁️ Load from Cloud</button>
-    <div class="small mt-6" id="auth-hint">Firebase: set window.FIREBASE_CONFIG in page (apiKey, projectId...).</div>
+    <div class="small mt-6" id="auth-hint">Firebase connected to project: pixel-adventure-rpg</div>
   </div>
   <button class="btn mt-6" onclick="showScreen('title-screen')">← Back</button>
 </div>
@@ -1979,9 +1979,15 @@ function buyTalent(id){
 }
 
 /* ===== Firebase Auth + Cloud Save ===== */
-window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null;
-// Optional: paste your config here:
-// window.FIREBASE_CONFIG={apiKey:"...",authDomain:"...",projectId:"...",storageBucket:"...",messagingSenderId:"...",appId:"..."};
+window.FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBndIv5dArprmwgt_D4V-cMmWn0nqC-mAg",
+  authDomain: "pixel-adventure-rpg.firebaseapp.com",
+  projectId: "pixel-adventure-rpg",
+  storageBucket: "pixel-adventure-rpg.firebasestorage.app",
+  messagingSenderId: "877872540453",
+  appId: "1:877872540453:web:2165ae555316e833ea48cc",
+  measurementId: "G-GB46QC8CZK"
+};
 let _fb=null,_fbAuth=null,_fbDb=null,_fbUser=null;
 function initFirebase(){
   if(_fb)return !!_fbAuth;
