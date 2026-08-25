@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -239,8 +240,19 @@ body{padding:6px;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));min-
 @keyframes shakeScreen{0%,100%{transform:translateX(0)}20%{transform:translateX(-3px)}40%{transform:translateX(3px)}60%{transform:translateX(-2px)}80%{transform:translateX(2px)}}
 .shake-screen{animation:shakeScreen .28s ease}
 .flash-hit #e-bar{filter:brightness(1.8)}
-.popup-float{position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);color:#ffcc00;font-weight:bold;font-size:18px;pointer-events:none;z-index:9998;text-shadow:0 0 6px #000;animation:floatUp .8s ease forwards}
-@keyframes floatUp{0%{opacity:1;transform:translate(-50%,-50%)}100%{opacity:0;transform:translate(-50%,-90%)}}
+.popup-float{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);font-weight:bold;font-size:22px;pointer-events:none;z-index:9998;text-shadow:0 2px 6px #000;animation:floatUp .85s ease forwards;white-space:nowrap}
+.popup-float.dmg{color:#ff6b6b;font-size:24px}
+.popup-float.crit{color:#ffcc00;font-size:28px;animation:floatUpCrit .9s ease forwards}
+.popup-float.heal{color:#6bff8a;font-size:22px}
+.popup-float.miss{color:#aaa;font-size:18px}
+.popup-float.skill{color:#7ec8ff;font-size:22px}
+@keyframes floatUp{0%{opacity:1;transform:translate(-50%,-40%) scale(1)}100%{opacity:0;transform:translate(-50%,-120%) scale(1.15)}}
+@keyframes floatUpCrit{0%{opacity:1;transform:translate(-50%,-40%) scale(1.2)}40%{transform:translate(-50%,-70%) scale(1.35)}100%{opacity:0;transform:translate(-50%,-130%) scale(1.1)}}
+.flash-hit #e-bar{filter:brightness(2.2)}
+.flash-hurt #b-bar{filter:brightness(2)}
+.guide-pulse{animation:guidePulse 1.2s ease-in-out infinite;box-shadow:0 0 0 2px var(--accent)!important;border-color:var(--accent)!important}
+@keyframes guidePulse{0%,100%{box-shadow:0 0 0 2px rgba(0,230,184,.5)}50%{box-shadow:0 0 0 5px rgba(0,230,184,.25)}}
+.objective-bar.guide{border-color:var(--gold);background:#1a2810}
 
 .boss-cinema{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;padding:16px;animation:cinemaIn .4s ease}
 @keyframes cinemaIn{from{opacity:0}to{opacity:1}}
@@ -601,13 +613,38 @@ function screenShake(){
   document.body.classList.add("shake-screen");
   setTimeout(()=>document.body.classList.remove("shake-screen"),300);
 }
-function floatText(txt){
+function floatText(txt, kind){
   const el=document.createElement("div");
-  el.className="popup-float";
+  el.className="popup-float"+(kind?(" "+kind):"");
   el.textContent=txt;
+  // slight random horizontal offset so multi-hits don't stack perfectly
+  const ox=(Math.random()*40-20);
+  el.style.left="calc(50% + "+ox+"px)";
   document.body.appendChild(el);
-  setTimeout(()=>el.remove(),800);
+  setTimeout(()=>el.remove(),900);
 }
+function floatDmg(n, kind){
+  const k=kind||"dmg";
+  const prefix=(k==="heal")?"+":"-";
+  floatText(prefix+Math.abs(n), k==="crit"?"crit":k);
+}
+function flashEnemy(){
+  const sc=document.getElementById("battle-screen");
+  if(!sc)return;
+  sc.classList.remove("flash-hit");
+  void sc.offsetWidth;
+  sc.classList.add("flash-hit");
+  setTimeout(()=>sc.classList.remove("flash-hit"),180);
+}
+function flashPlayer(){
+  const sc=document.getElementById("battle-screen");
+  if(!sc)return;
+  sc.classList.remove("flash-hurt");
+  void sc.offsetWidth;
+  sc.classList.add("flash-hurt");
+  setTimeout(()=>sc.classList.remove("flash-hurt"),180);
+}
+
 
 function sfxHit(){
   playNoise(0.06, 0.1, 600);
@@ -771,10 +808,17 @@ function fameTitleOf(fame,heroTitle){
 /* ===== Main story & objective (shipping quality) ===== */
 function getObjectiveText(){
   if(!G) return t("開始新的冒險。","Start a new adventure.");
-  const stage=G.storyStage||0;
+  // Tutorial steps (first ~5 min)
+  const ts=G.tutorialStep||0;
+  if(ts===1) return t("① 走到有資源的格子，按「採集」。","① Step onto a resource tile and tap Gather.");
+  if(ts===2) return t("① 繼續採集／戰鬥，升到 Lv.3。","① Keep gathering/fighting until Lv.3.");
+  if(ts===3) return t("② 回村莊（地圖中央🏠），打開「工會」。","② Return to the village (🏠 center) and open the Guild.");
+  if(ts===4) return t("③ 在工會接第一個任務。","③ Accept your first quest at the Guild.");
+  if(ts===5) return t("④ 完成任務目標（採集或戰鬥），再回工會提交。","④ Finish the quest goal, then turn it in at the Guild.");
   if(G.heroTitle){
     return t("你已成為勇者。繼續挑戰魔王、遺跡，並把名氣推得更高。","You are a Hero. Keep challenging the Demon Lord & Ruins, and raise your fame.");
   }
+  const stage=G.storyStage||0;
   if(stage<=0) return t("在村莊附近採集與探索，熟悉操作。","Gather and explore near the village to learn the basics.");
   if(stage===1) return t("把等級提升到 3，解鎖工會並接第一個任務。","Reach Lv.3, unlock the Guild, and take your first quest.");
   if(stage===2) return t("完成任務賺取金幣與名氣，準備挑戰森林。","Finish quests for gold & fame, then prepare for the forest.");
@@ -783,10 +827,38 @@ function getObjectiveText(){
   if(stage===5) return t("再次挑戰魔王，或深入遺跡追求更高榮耀。","Challenge the Demon Lord again, or push deeper into the Ruins.");
   return t("自由冒險：變強、探索、征服。","Free adventure: grow, explore, conquer.");
 }
+
+function applyGuideHighlight(){
+  if(!G||!G.tutorialStep)return;
+  const ts=G.tutorialStep;
+  // clear old
+  document.querySelectorAll(".guide-pulse").forEach(el=>el.classList.remove("guide-pulse"));
+  if(ts===1||ts===2){
+    document.querySelectorAll("#options .btn").forEach(b=>{
+      const t=b.textContent||"";
+      if(/採集|Gather|采集/.test(t)) b.classList.add("guide-pulse");
+    });
+  }
+  if(ts===3){
+    document.querySelectorAll("#options .btn").forEach(b=>{
+      const t=b.textContent||"";
+      if(/工會|Guild/.test(t)) b.classList.add("guide-pulse");
+    });
+  }
+  if(ts===4){
+    document.querySelectorAll("#guild-content .btn, #quest-content .btn").forEach(b=>{
+      const t=b.textContent||"";
+      if(/接取|Accept|接受/.test(t)) b.classList.add("guide-pulse");
+    });
+  }
+}
 function updateObjective(){
   const el=document.getElementById("objective-bar");
   if(!el)return;
   el.innerHTML=`<b>🎯 ${t("目標","Objective")}</b>: ${getObjectiveText()}`;
+  const guiding=G&&G.tutorialStep&&G.tutorialStep>=1&&G.tutorialStep<=5;
+  el.classList.toggle("guide", !!guiding);
+  setTimeout(applyGuideHighlight, 50);
 }
 
 function playStoryEvent(id){
@@ -1166,6 +1238,8 @@ function addLog(msg){eventLog.push(msg);if(eventLog.length>30)eventLog.shift();r
 function renderLog(){const el=document.getElementById("event-log");if(!el)return;el.innerHTML=eventLog.slice(-8).map(m=>`<div>${m}</div>`).join("");el.scrollTop=el.scrollHeight;}
 
 function updateUI(){
+  try{applyGuideHighlight();}catch(e){}
+
   if(!G)return;
   document.getElementById("hp").textContent=G.hp;document.getElementById("maxHp").textContent=G.maxHp;
   document.getElementById("level").textContent=G.level;document.getElementById("atk").textContent=totalAtk();
@@ -1381,8 +1455,8 @@ function checkTile(){
 }
 function dialogue(msg){document.getElementById("dialogue").textContent=msg;}
 
-function gather(k){if(G.stamina<1||G.ap<1)return;G.stamina--;G.ap--;const ev=G.mapEvents[k];if(!G.inv[ev.res])G.inv[ev.res]={};let rar=0;{const rr=Math.random();if(rr>0.992)rar=4;else if(rr>0.96)rar=3;else if(rr>0.88)rar=2;else if(rr>0.62)rar=1;}G.inv[ev.res][rar]=(G.inv[ev.res][rar]||0)+1;addLog(t("採集到 ","Gathered ")+tn(ev.res)+"（"+rarityName(rar)+"）");let gexp=6+Math.floor(Math.random()*5);if(G.level<5)gexp=Math.floor(gexp*1.6);if(G.level<3)gexp+=4;if(G.firstGather){G.firstGather=false;gexp+=12;G.gold+=15;addLog(t("🌟 第一次採集獎勵！","🌟 First gather bonus!"));sfxRare();}G.exp+=gexp;addLog(t("採集獲得 EXP+","Gather EXP+")+gexp);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.35);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;G.gold+=10+G.level*2;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(t("等級","Lv")+G.level+t("！AP上限+1","! AP max +1"));}sfxLevel();addLog(t("升級！Lv.","Level up! Lv.")+G.level+t("（獎勵金幣）"," (gold bonus)"));if(G.tutorialStep&&G.tutorialStep<3&&G.level>=3){G.tutorialStep=3;uiAlert(t("太好了！你達到 3 級。\n回村莊解鎖工會，接第一個任務吧。","Great! You reached Lv.3.\nReturn to the village to unlock the Guild and take a quest."));}}if(ev.res==="ore"&&Math.random()<0.12){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog(t("採礦幸運獲得強化石！","Lucky mining: Enhance Stone!"));}if(Math.random()<0.4){G.stamina=Math.min(G.maxStamina,G.stamina+1);addLog(t("採集時恢復了 1 體力","Gathering restored 1 STA"));}sfxGather();updateQuestProgress("Gather",1);delete G.mapEvents[k];updateUI();saveGame();checkTile();}
-function gatherFixed(type){if(G.stamina<1||G.ap<1)return;G.stamina--;G.ap--;const map={mine:"ore",herb:"herb",wood:"wood"};const res=map[type];let rar=0;{const rr=Math.random();if(rr>0.992)rar=4;else if(rr>0.96)rar=3;else if(rr>0.88)rar=2;else if(rr>0.62)rar=1;}if(!G.inv[res])G.inv[res]={};G.inv[res][rar]=(G.inv[res][rar]||0)+1;addLog(t("採集到 ","Gathered ")+tn(res)+"（"+rarityName(rar)+"）");let gexp=6+Math.floor(Math.random()*5);if(G.level<5)gexp=Math.floor(gexp*1.6);if(G.level<3)gexp+=4;if(G.firstGather){G.firstGather=false;gexp+=12;G.gold+=15;addLog(t("🌟 第一次採集獎勵！","🌟 First gather bonus!"));sfxRare();}G.exp+=gexp;addLog(t("採集獲得 EXP+","Gather EXP+")+gexp);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.35);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;G.gold+=10+G.level*2;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(t("等級","Lv")+G.level+t("！AP上限+1","! AP max +1"));}addLog(t("升級！Lv.","Level up! Lv.")+G.level+t("（獎勵金幣）"," (gold bonus)"));}if(type==="mine"&&Math.random()<0.12){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog(t("採礦幸運獲得強化石！","Lucky mining: Enhance Stone!"));}if(Math.random()<0.4){G.stamina=Math.min(G.maxStamina,G.stamina+1);addLog(t("採集時恢復了 1 體力","Gathering restored 1 STA"));}updateQuestProgress("Gather",1);updateUI();saveGame();}
+function gather(k){if(G.stamina<1||G.ap<1)return;G.stamina--;G.ap--;const ev=G.mapEvents[k];if(!G.inv[ev.res])G.inv[ev.res]={};let rar=0;{const rr=Math.random();if(rr>0.992)rar=4;else if(rr>0.96)rar=3;else if(rr>0.88)rar=2;else if(rr>0.62)rar=1;}G.inv[ev.res][rar]=(G.inv[ev.res][rar]||0)+1;addLog(t("採集到 ","Gathered ")+tn(ev.res)+"（"+rarityName(rar)+"）");let gexp=6+Math.floor(Math.random()*5);if(G.level<5)gexp=Math.floor(gexp*1.6);if(G.level<3)gexp+=4;if(G.firstGather){G.firstGather=false;gexp+=12;G.gold+=15;addLog(t("🌟 第一次採集獎勵！","🌟 First gather bonus!"));sfxRare();if(G.tutorialStep===1){G.tutorialStep=2;updateObjective();}}G.exp+=gexp;addLog(t("採集獲得 EXP+","Gather EXP+")+gexp);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.35);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;G.gold+=10+G.level*2;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(t("等級","Lv")+G.level+t("！AP上限+1","! AP max +1"));}sfxLevel();addLog(t("升級！Lv.","Level up! Lv.")+G.level+t("（獎勵金幣）"," (gold bonus)"));if(G.tutorialStep&&G.tutorialStep<3&&G.level>=3){G.tutorialStep=3;updateObjective();uiAlert(t("太好了！你達到 3 級。\n回村莊解鎖工會，接第一個任務吧。","Great! You reached Lv.3.\nReturn to the village to unlock the Guild and take a quest."));}}if(ev.res==="ore"&&Math.random()<0.12){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog(t("採礦幸運獲得強化石！","Lucky mining: Enhance Stone!"));}if(Math.random()<0.4){G.stamina=Math.min(G.maxStamina,G.stamina+1);addLog(t("採集時恢復了 1 體力","Gathering restored 1 STA"));}sfxGather();updateQuestProgress("Gather",1);delete G.mapEvents[k];updateUI();saveGame();checkTile();}
+function gatherFixed(type){if(G.stamina<1||G.ap<1)return;G.stamina--;G.ap--;const map={mine:"ore",herb:"herb",wood:"wood"};const res=map[type];let rar=0;{const rr=Math.random();if(rr>0.992)rar=4;else if(rr>0.96)rar=3;else if(rr>0.88)rar=2;else if(rr>0.62)rar=1;}if(!G.inv[res])G.inv[res]={};G.inv[res][rar]=(G.inv[res][rar]||0)+1;addLog(t("採集到 ","Gathered ")+tn(res)+"（"+rarityName(rar)+"）");let gexp=6+Math.floor(Math.random()*5);if(G.level<5)gexp=Math.floor(gexp*1.6);if(G.level<3)gexp+=4;if(G.firstGather){G.firstGather=false;gexp+=12;G.gold+=15;addLog(t("🌟 第一次採集獎勵！","🌟 First gather bonus!"));sfxRare();if(G.tutorialStep===1){G.tutorialStep=2;}}G.exp+=gexp;addLog(t("採集獲得 EXP+","Gather EXP+")+gexp);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.35);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;G.gold+=10+G.level*2;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(t("等級","Lv")+G.level+t("！AP上限+1","! AP max +1"));}addLog(t("升級！Lv.","Level up! Lv.")+G.level+t("（獎勵金幣）"," (gold bonus)"));}if(type==="mine"&&Math.random()<0.12){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog(t("採礦幸運獲得強化石！","Lucky mining: Enhance Stone!"));}if(Math.random()<0.4){G.stamina=Math.min(G.maxStamina,G.stamina+1);addLog(t("採集時恢復了 1 體力","Gathering restored 1 STA"));}updateQuestProgress("Gather",1);updateUI();saveGame();}
 function rest(){G.hp=G.maxHp;G.mp=G.maxMp;G.stamina=G.maxStamina;G.ap=G.maxAp;addLog(t("休息完畢，狀態全回復。","Rested — fully recovered."));nextDay();}
 
 /* ========== 戰鬥（含魔王狂暴） ========== */
@@ -1502,7 +1576,8 @@ function pAct(a,skillIdx){
     // Bond bonus from active pet
     if(G.activePet&&G.activePet.hp>0){d+=Math.floor((G.activePet.bond||0)/10);}
     let crit=false;
-    if(Math.random()*100<G.crit){d=Math.floor(d*1.75);crit=true;sfxCrit();screenShake();floatText("CRIT!");addBLog("💥 "+t("暴擊！","Critical!"));}else{sfxHit();}
+    if(Math.random()*100<G.crit){d=Math.floor(d*1.75);crit=true;sfxCrit();screenShake();floatDmg(d,"crit");floatText("CRIT!","crit");addBLog("💥 "+t("暴擊！","Critical!"));}else{sfxHit();floatDmg(d,"dmg");}
+    flashEnemy();
     // Glance / solid hit flavor
     const pct=battle.enemy.maxHp?Math.min(100,Math.floor(d/battle.enemy.maxHp*100)):0;
     battle.enemy.hp-=d;
@@ -1515,7 +1590,7 @@ function pAct(a,skillIdx){
     battle.playerDef=true;G.combo=0;
     // Small MP recover on defend for better feel
     G.mp=Math.min(G.maxMp,G.mp+2);
-    addBLog(t("防禦姿態（減傷，並回復少許 MP）","Defensive stance (damage cut, slight MP recover)"));
+    sfxClick&&sfxClick();addBLog(t("防禦姿態（減傷，並回復少許 MP）","Defensive stance (damage cut, slight MP recover)"));
   }
   else if(a==="skill"){
     const sk=G.skills[skillIdx||0];
@@ -1529,7 +1604,7 @@ function pAct(a,skillIdx){
     let d=0;
     if(fx==="heavy"){
       d=Math.floor(base*1.35)+12+enh*6;
-      battle.enemy.hp-=d;
+      battle.enemy.hp-=d;floatDmg(d,"skill");flashEnemy();screenShake();
       addBLog(t("【重擊】猛力一擊，造成 ","【Heavy Strike】slams for ")+d);
     }else if(fx==="guard"){
       battle.playerDef=true;
@@ -1538,34 +1613,32 @@ function pAct(a,skillIdx){
       addBLog(t("【堅守】防禦提升，並準備反擊！","【Guard】Defense up, counter ready!"));
     }else if(fx==="fireball"){
       d=Math.floor(base*1.15)+18+enh*7;
-      battle.enemy.hp-=d;
+      battle.enemy.hp-=d;floatDmg(d,"skill");flashEnemy();screenShake();
       addBLog(t("【火球】爆發火焰，造成 ","【Fireball】bursts for ")+d);
     }else if(fx==="frost"){
       d=Math.floor(base*0.9)+10+enh*4;
-      battle.enemy.hp-=d;
+      battle.enemy.hp-=d;floatDmg(d,"skill");flashEnemy();
       battle.enemy.spd=Math.max(1,Math.floor(battle.enemy.spd*0.7));
-      // rebuild order speeds roughly
       addBLog(t("【冰霜】造成 ","【Frost】deals ")+d+t("，並降低敵方速度！"," and slows the enemy!"));
     }else if(fx==="precise"){
       d=Math.floor(base*1.1)+14+enh*5;
-      // never glance — guaranteed solid
-      battle.enemy.hp-=d;
+      battle.enemy.hp-=d;floatDmg(d,"skill");flashEnemy();
       addBLog(t("【精準射擊】穩定命中，造成 ","【Precise Shot】hits clean for ")+d);
     }else if(fx==="trap"){
       d=Math.floor(base*0.75)+8+enh*3;
       battle.enemy.hp-=d;
       battle.dotDmg=6+enh*2;
-      battle.dotTurns=3;
+      battle.dotTurns=3;floatDmg(d,"skill");flashEnemy();
       addBLog(t("【陷阱】造成 ","【Trap】deals ")+d+t("，並設置持續傷害！"," and applies DoT!"));
     }else if(fx==="backstab"){
       const critChance=Math.min(95,G.crit+35);
       const isCrit=Math.random()*100<critChance;
       d=Math.floor(base*(isCrit?2.1:1.2))+10+enh*5;
-      battle.enemy.hp-=d;
+      battle.enemy.hp-=d;floatDmg(d,isCrit?"crit":"skill");flashEnemy();if(isCrit)screenShake();
       addBLog((isCrit?"💥 ":"")+t("【背刺】","【Backstab】")+(isCrit?t("暴擊！","CRIT! "):"")+t("造成 ","deals ")+d);
     }else if(fx==="shadow"){
       d=Math.floor(base*0.85)+8+enh*4;
-      battle.enemy.hp-=d;
+      battle.enemy.hp-=d;floatDmg(d,"skill");flashEnemy();
       addBLog(t("【影襲】第一擊造成 ","【Shadow Strike】first hit ")+d);
       if(battle.enemy.hp>0){
         const d2=Math.floor(base*0.7)+6+enh*3;
@@ -1596,17 +1669,18 @@ function petAct(){
   const skillChance=0.25+Math.min(0.35,(p.bond||0)/200);
   if(Math.random()<skillChance){
     const d=p.atk+8+bondBonus+Math.floor(Math.random()*4);
-    battle.enemy.hp-=d;
+    battle.enemy.hp-=d;floatDmg(d,"skill");flashEnemy();sfxHit();
     addBLog(tn(p.name)+t(" 使出特技！造成 "," uses a special! Deals ")+d);
   }else{
     const d=p.atk+bondBonus;
-    battle.enemy.hp-=d;
+    battle.enemy.hp-=d;floatDmg(d,"dmg");flashEnemy();sfxHit();
     addBLog(tn(p.name)+t(" 造成 "," deals ")+d);
   }
   // Rare support action at high bond
   if((p.bond||0)>=40&&Math.random()<0.12){
     const heal=8+Math.floor(p.level*1.5);
     G.hp=Math.min(G.maxHp,G.hp+heal);
+    floatDmg(heal,"heal");
     addBLog(tn(p.name)+t(" 守護了你，回復 "," guards you, heal ")+heal+" HP");
     sfxHeal();
   }
@@ -1614,7 +1688,7 @@ function petAct(){
   if((p.bond||0)>=80&&!battle.unityUsed&&Math.random()<0.18){
     battle.unityUsed=true;
     const ud=Math.floor(totalAtk()*0.5)+p.atk+10;
-    battle.enemy.hp-=ud;
+    battle.enemy.hp-=ud;floatDmg(ud,"crit");flashEnemy();screenShake();
     addBLog(t("🤝 羈絆合擊！你與 ","🤝 Bond Unity! You & ")+tn(p.name)+t(" 造成 "," deal ")+ud);
     sfxCrit();
   }
@@ -1630,13 +1704,15 @@ function enemyAct(){
   const def=target===G?totalDef():0;
   d=Math.max(1,d-def);
   target.hp-=d;
+  sfxHit();floatDmg(d,"dmg");
+  if(target===G)flashPlayer(); else flashEnemy();
   if(mitigated) addBLog(tn(battle.enemy.name)+t(" 的攻擊被防住大半，只受到 ","'s attack was mostly blocked — took ")+d);
   else addBLog(tn(battle.enemy.name)+t(" 攻擊"," attacks ")+(target===G?t("你","you"):t("寵物","pet"))+t("造成 "," for ")+d);
   // Guard counter
   if(target===G&&battle.counterReady){
     battle.counterReady=false;
     const cd=Math.floor(totalAtk()*0.55)+5;
-    battle.enemy.hp-=cd;
+    battle.enemy.hp-=cd;floatDmg(cd,"skill");flashEnemy();
     addBLog(t("反擊！造成 ","Counter! Deals ")+cd);
   }
   // DoT tick on enemy after they act
@@ -2015,7 +2091,7 @@ function bossCinemaNext(){
 }
 
 function endBattle(win){
-  if(win){sfxWin();floatText(t("勝利!","WIN!"));
+  if(win){sfxWin();floatText(t("勝利!","WIN!"),"crit");
     let exp=25+Math.floor(G.day/2),gold=20+Math.floor(G.day/3);
     if(G.level<5){exp=Math.floor(exp*1.4);gold+=10;}
     if(G.firstBattle){G.firstBattle=false;exp+=20;gold+=25;G.fame+=5;addLog(t("🌟 初戰獎勵！","🌟 First battle bonus!"));}
@@ -2283,6 +2359,8 @@ function generateAvailableQuests(){
   }
 }
 function renderGuild(){
+  if(G&&G.tutorialStep===3){G.tutorialStep=4;updateObjective();}
+
   let h=`<div>${t("冒險者等級","Rank")} ${G.rank} | ${t("名氣","Fame")} ${G.fame}</div><div class="small mb-6">${t("下次刷新費用：","Next refresh cost: ")}${G.refreshCost}G</div>`;
   availableQuests.forEach((q,i)=>{
     const diffColor=q.diff===2?"r4":q.diff===1?"r3":"r1";
@@ -2293,7 +2371,7 @@ function renderGuild(){
   h+=`<button class="btn mt-6" onclick="refreshQuests()">${t("刷新任務列表","Refresh Quests")} (${G.refreshCost}G)</button>`;
   document.getElementById("guild-content").innerHTML=h;
 }
-function acceptQuest(i){if(G.commissions.length>=6){uiAlert(t("任務已滿","Quest list full"));return;}G.commissions.push({...availableQuests[i]});availableQuests.splice(i,1);addLog(t("接取了任務","Quest accepted"));saveGame();renderGuild();}
+function acceptQuest(i){if(G.commissions.length>=6){uiAlert(t("任務已滿","Quest list full"));return;}G.commissions.push({...availableQuests[i]});availableQuests.splice(i,1);addLog(t("接取了任務","Quest accepted"));if(G.tutorialStep===4){G.tutorialStep=5;updateObjective();uiAlert(t("任務已接！\n完成目標後回工會提交。","Quest accepted!\nFinish the goal, then turn it in at the Guild."));}saveGame();renderGuild();}
 function refreshQuests(){if(G.gold<G.refreshCost){uiAlert(t("金幣不足","Not enough gold"));return;}G.gold-=G.refreshCost;G.refreshCost+=5;generateAvailableQuests();addLog(t("刷新任務，下次 ","Refreshed quests, next ")+G.refreshCost+"G");updateUI();saveGame();renderGuild();}
 
 function renderQuests(){
@@ -2338,7 +2416,7 @@ function submitQ(i){
   G.gold += c.reward;
   G.fame += c.fame || 5;
   G.commissions.splice(i,1);
-  addLog(t("完成任務 +","Quest complete +")+c.reward+"G");
+  addLog(t("完成任務 +","Quest complete +")+c.reward+"G");if(G.tutorialStep===5){G.tutorialStep=6;updateObjective();uiAlert(t("新手引導完成！\n接下來自由探索：森林、鐵匠、魔王窟都在等你。","Tutorial complete!\nExplore freely: forest, blacksmith, and the Demon Lair await."));}
   updateUI();saveGame();renderQuests();
 }
 function abandonQ(i){uiConfirm(t("放棄任務？","Abandon quest?")).then(ok=>{if(!ok)return;G.commissions.splice(i,1);saveGame();renderQuests();});}
