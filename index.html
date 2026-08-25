@@ -466,6 +466,7 @@ body{padding:6px;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));min-
 <div id="pet-screen" class="screen"><h2 class="text-center mb-6">🐾 Pets</h2><div id="pet-content"></div><button class="btn mt-6" onclick="backFromMenu()">← Back</button></div>
 <div id="setting-screen" class="screen"><h2 class="text-center mb-6">⚙️ Settings</h2>
 <button class="btn" onclick="toggleLang()">🌐 Toggle Language</button>
+<button class="btn" id="auto-food-btn" onclick="toggleAutoFood()">🍞 Auto-Food: On</button>
 <button class="btn" id="sfx-toggle-btn" onclick="const on=sfxToggle();this.textContent=on?t('🔊 音效：開','🔊 SFX: On'):t('🔇 音效：關','🔇 SFX: Off')">🔊 SFX: On</button>
 <button class="btn" onclick="showSaveSlots('save')">💾 Manual Save to Slot</button>
 <button class="btn danger" onclick="resetAll()">🗑️ Reset All Saves</button>
@@ -640,6 +641,15 @@ function sfxInit(){
     if(SFX._ac.state==="suspended") SFX._ac.resume();
   }catch(e){}
   return SFX._ac;
+}
+function toggleAutoFood(){
+  if(!G){uiAlert(t("請先進入遊戲","Start a game first"));return;}
+  if(G.autoFood===false)G.autoFood=true;
+  else G.autoFood=false;
+  const on=G.autoFood!==false;
+  const btn=document.getElementById("auto-food-btn");
+  if(btn)btn.textContent=on?t("🍞 自動使用食物：開","🍞 Auto-Food: On"):t("🍞 自動使用食物：關","🍞 Auto-Food: Off");
+  saveGame();
 }
 function sfxToggle(){
   SFX._enabled=!SFX._enabled;
@@ -901,9 +911,25 @@ function fameTitleOf(fame,heroTitle){
 }
 
 /* ===== Main story & objective (shipping quality) ===== */
+function syncTutorialStep(){
+  if(!G)return;
+  let ts=G.tutorialStep||0;
+  if(ts>0&&ts<=5){
+    if(ts===1&&!G.firstGather)ts=2;
+    if(ts<=2&&G.level>=3)ts=3;
+    if(ts<=3&&G.level>=3&&G.day>=3){/* stay 3 until guild */}
+    if(ts===5&&G.commissions&&G.commissions.length===0&&G.level>=3){/* may have finished */}
+    // if player is already well past tutorial, skip
+    if(G.level>=5&&ts>0&&ts<=5&&!(G.commissions&&G.commissions.some(c=>c.progress<c.need))){
+      // only auto-skip if not mid-quest tutorial
+      if(ts<=2||(ts<=3&&G.level>=5))ts=6;
+    }
+    if(ts!==G.tutorialStep){G.tutorialStep=ts;}
+  }
+}
 function getObjectiveText(){
   if(!G) return t("開始新的冒險。","Start a new adventure.");
-  // Tutorial steps (first ~5 min)
+  syncTutorialStep();
   const ts=G.tutorialStep||0;
   if(ts===1) return t("① 走到有資源的格子，按「採集」。","① Step onto a resource tile and tap Gather.");
   if(ts===2) return t("① 繼續採集／戰鬥，升到 Lv.3。","① Keep gathering/fighting until Lv.3.");
@@ -913,14 +939,10 @@ function getObjectiveText(){
   if(G.heroTitle){
     return t("你已成為勇者。繼續挑戰魔王、遺跡，並把名氣推得更高。","You are a Hero. Keep challenging the Demon Lord & Ruins, and raise your fame.");
   }
-  const stage=G.storyStage||0;
-  if(stage<=0) return t("在村莊附近採集與探索，熟悉操作。","Gather and explore near the village to learn the basics.");
-  if(stage===1) return t("把等級提升到 3，解鎖工會並接第一個任務。","Reach Lv.3, unlock the Guild, and take your first quest.");
-  if(stage===2) return t("完成任務賺取金幣與名氣，準備挑戰森林。","Finish quests for gold & fame, then prepare for the forest.");
-  if(stage===3) return t("在森林戰鬥中變強，目標等級 5+。","Grow stronger in forest battles. Aim for Lv.5+.");
-  if(stage===4) return t("等級與裝備就緒後，前往東邊的魔王窟挑戰魔王。","When ready, head east to the Demon Lord's Lair.");
-  if(stage===5) return t("再次挑戰魔王，或深入遺跡追求更高榮耀。","Challenge the Demon Lord again, or push deeper into the Ruins.");
-  return t("自由冒險：變強、探索、征服。","Free adventure: grow, explore, conquer.");
+  if(G.level<5) return t("繼續變強：接任務、打森林、強化裝備。","Keep growing: quests, forest, gear.");
+  if(G.level<8) return t("挑戰遺跡或準備魔王（注意等級與裝備）。","Try Ruins or prepare for the Demon Lord.");
+  if(!G.heroTitle) return t("前往東邊魔王窟挑戰魔王，或深入遺跡。","Challenge the Demon Lord to the east, or push the Ruins.");
+  return t("自由冒險：再戰魔王、遺跡、收集與羈絆。","Free adventure: Demon Lord, Ruins, collect & bonds.");
 }
 
 function applyGuideHighlight(){
@@ -1178,6 +1200,12 @@ function applyLanguage(){
   const ath=document.getElementById("ach-title");
   if(ath)ath.textContent=t("🏆 成就","🏆 Achievements");
   if(document.getElementById("achieve-screen")?.classList.contains("active")) renderAchievements();
+  const pth=document.querySelector("#prestige-screen h2");
+  if(pth)pth.textContent=t("⭐ 英雄印記天賦","⭐ Prestige Talents");
+  const pback=document.querySelector("#prestige-screen .btn");
+  if(pback)pback.textContent=t("← 返回","← Back");
+  const af=document.getElementById("auto-food-btn");
+  if(af&&G)af.textContent=(G.autoFood!==false)?t("🍞 自動使用食物：開","🍞 Auto-Food: On"):t("🍞 自動使用食物：關","🍞 Auto-Food: Off");
   // Battle labels
   // Re-render dynamic content if game is active
   if(G){
@@ -1533,7 +1561,7 @@ function nextDay(){G.day++;if(G.mode==="normal"&&G.day>300){dialogue(t("300日�
 function checkTile(){
   const k=`${G.x},${G.y}`,tile=getTile(k),ev=G.mapEvents[k],opt=document.getElementById("options");opt.innerHTML="";
   if(ev){
-    if(ev.type==="res"){dialogue(`${ev.icon} ${tn(ev.res)}（${rarityName(ev.rarity)}）`);opt.innerHTML=`<button class="btn" onclick="gather('${k}')">${t("採集","Gather")}</button>`;return;}
+    if(ev.type==="res"){dialogue(`${ev.icon} ${itemName(ev.res)}（${rarityName(ev.rarity)}）`);opt.innerHTML=`<button class="btn" onclick="gather('${k}')">${t("採集","Gather")}</button>`;return;}
     if(ev.type==="mon"){dialogue(`${ev.icon} ${tn(ev.name)}`);opt.innerHTML=`<button class="btn" onclick="startBattle('${k}')">${t("戰鬥","Battle")}</button>`;return;}
     if(ev.type==="npc"){dialogue(`${ev.icon} ${tn(ev.name)}`);opt.innerHTML=`<button class="btn" onclick="interactNpc('${k}')">${t("互動","Interact")}</button>`;return;}
     if(ev.type==="rare"){dialogue(`${ev.icon} ${ev.name||tn(ev.rare)}`);opt.innerHTML=`<button class="btn" onclick="interactRare('${k}')">${t("調查","Investigate")}</button>`;return;}
@@ -1576,8 +1604,27 @@ function dialogue(msg){document.getElementById("dialogue").textContent=msg;}
 
 function checkApEmpty(){
   if(G.ap>0)return false;
+  // Auto-use food until AP full or food gone
+  if(G.autoFood!==false && (G.inv.food||0)>0){
+    let used=0;
+    while(G.ap<G.maxAp && (G.inv.food||0)>0){
+      G.inv.food--;
+      G.ap=Math.min(G.maxAp,G.ap+5);
+      G.stamina=Math.min(G.maxStamina,G.stamina+4);
+      used++;
+    }
+    if(used){
+      addLog(t("自動食用食物 ×","Auto-ate food ×")+used+t("，AP "," — AP ")+G.ap+"/"+G.maxAp);
+      updateUI();saveGame();
+      if(G.ap>0)return false;
+    }
+    if((G.inv.food||0)<=0){
+      uiAlert(t("食物已用完，AP 仍不足。\n按 ⏭ 進入下一日，或回村購買／烹飪食物。","Food used up; AP still low.\nPress ⏭ for next day, or cook/buy food in town."));
+      return true;
+    }
+  }
   const hasFood=(G.inv.food||0)>0;
-  uiAlert(t("行動值（AP）已用完！\n","Action Points (AP) depleted!\n")+(hasFood?t("可使用背包中的「食物」回復 AP，或按 ⏭ 進入下一日。","Use Food in bag to restore AP, or press ⏭ for next day."):t("按 ⏭ 進入下一日回復 AP，或回村莊休息／買食物。","Press ⏭ for next day, or rest / buy food in village.")));
+  uiAlert(t("行動值（AP）已用完！\n","Action Points (AP) depleted!\n")+(hasFood?t("可在設定開啟自動使用食物，或手動從背包使用。\n也可按 ⏭ 下一日。","Enable auto-food in Settings, or use Food from bag.\nOr press ⏭ for next day."):t("按 ⏭ 進入下一日，或回村莊休息／買食物。","Press ⏭ for next day, or rest / buy food.")));
   return true;
 }
 function gather(k){if(G.stamina<1||G.ap<1){if(G.ap<1)checkApEmpty();else uiAlert(t("體力不足","Not enough STA"));return;}G.stamina--;G.ap--;const ev=G.mapEvents[k];if(!G.inv[ev.res])G.inv[ev.res]={};let rar=0;{const rr=Math.random();if(rr>0.992)rar=4;else if(rr>0.96)rar=3;else if(rr>0.88)rar=2;else if(rr>0.62)rar=1;}G.inv[ev.res][rar]=(G.inv[ev.res][rar]||0)+1;addLog(t("採集到 ","Gathered ")+raritySpan(itemName(ev.res)+"（"+rarityName(rar)+"）",rar));let gexp=6+Math.floor(Math.random()*5);if(G.level<5)gexp=Math.floor(gexp*1.6);if(G.level<3)gexp+=4;if(G.firstGather){G.firstGather=false;gexp+=12;G.gold+=15;addLog(t("🌟 第一次採集獎勵！","🌟 First gather bonus!"));sfxRare();if(G.tutorialStep===1){G.tutorialStep=2;updateObjective();}}G.exp+=gexp;addLog(t("採集獲得 EXP+","Gather EXP+")+gexp);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.35);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;G.gold+=10+G.level*2;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(t("等級","Lv")+G.level+t("！AP上限+1","! AP max +1"));}sfxLevel();addLog(t("升級！Lv.","Level up! Lv.")+G.level+t("（獎勵金幣）"," (gold bonus)"));if(G.tutorialStep&&G.tutorialStep<3&&G.level>=3){G.tutorialStep=3;updateObjective();uiAlert(t("太好了！你達到 3 級。\n回村莊解鎖工會，接第一個任務吧。","Great! You reached Lv.3.\nReturn to the village to unlock the Guild and take a quest."));}}if(ev.res==="ore"&&Math.random()<0.12){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog(t("採礦幸運獲得強化石！","Lucky mining: Enhance Stone!"));}if(Math.random()<0.4){G.stamina=Math.min(G.maxStamina,G.stamina+1);addLog(t("採集時恢復了 1 體力","Gathering restored 1 STA"));}
@@ -1596,18 +1643,21 @@ function rest(){G.hp=G.maxHp;G.mp=G.maxMp;G.stamina=G.maxStamina;G.ap=G.maxAp;ad
 function startForestBattle(){if(G.ap<1){checkApEmpty();return;}G.ap--;const m=MONSTERS[Math.floor(Math.random()*MONSTERS.length)];const mul=(0.9+Math.random()*0.35)*(1+G.day*0.018)*DIFF[G.diff].monMul;startBattleWith({name:m.name,icon:m.icon,hp:Math.floor(m.hp*mul),atk:Math.floor(m.atk*mul),spd:m.spd,rarity:m.r,maxHp:0});}
 function startBossBattle(){
   const d=DIFF[G.diff]||DIFF.normal;
-  // Soft gate: under-level / too early day → heavy warning (still allow, but boss is brutal)
   const under = (G.level<(d.bossGateLv||7)) || (G.day<(d.bossGateDay||8));
   const go = ()=>{
-    // Scale primarily with day+level; early days no longer under-tuned
-    const sc=1+G.day*0.04+G.level*0.05+(G.heroLevel||0)*0.08;
+    // If player keeps losing, freeze boss power growth until a win
+    if(!G.bossFailStreak)G.bossFailStreak=0;
+    if(G.bossFailStreak>=3&&G.bossPowerCapDay==null){
+      G.bossPowerCapDay=G.day;
+      addLog(t("魔王的成長停滯了……直到你擊敗他。","The Demon Lord's growth stalls... until you defeat him."));
+    }
+    const dayScale = G.bossPowerCapDay!=null ? Math.min(G.day, G.bossPowerCapDay) : G.day;
+    const sc=1+dayScale*0.04+G.level*0.05+(G.heroLevel||0)*0.08;
     let hp=Math.floor(320*sc*d.monMul);
     hp=Math.max(hp, d.bossMin||480);
     let atk=Math.floor((d.bossAtk||30)*sc);
     const spd=d.bossSpd||12;
-    // Under-geared attempt: boss gets angrier (no more early nerf)
     if(under){hp=Math.floor(hp*1.15);atk=Math.floor(atk*1.12);}
-    // Repeat clears slightly harder
     if(G.heroTitle){hp=Math.floor(hp*1.1);atk=Math.floor(atk*1.08);}
     const first=!G.heroTitle;
     const intro = first
@@ -1632,8 +1682,13 @@ function startBossBattle(){
 }
 function startBattle(k){const ev=G.mapEvents[k];startBattleWith({...ev,maxHp:ev.hp},k);}
 function startBattleWith(enemy,key){
+  window._autoBattle=false;
   enemy.maxHp=enemy.maxHp||enemy.hp;
-  if(!G.monSeen)G.monSeen={};G.monSeen[enemy.name]=true;
+  if(!G.monSeen)G.monSeen={};
+  if(!G.monSeen[enemy.name]){
+    G.monSeen[enemy.name]=true;
+    try{codexUnlockMonster(enemy);}catch(e){}
+  }
   battle={enemy,key,playerDef:false,log:[],order:[],idx:0};G.combo=0;
   const actors=[{type:"player",spd:totalSpd()}];
   if(G.activePet&&G.activePet.hp>0)actors.push({type:"pet",spd:G.activePet.spd||8});
@@ -2217,6 +2272,10 @@ function applyPrestigeToNewGame(){
   if(p.startStone){G.inv.skillStone=(G.inv.skillStone||0)+p.startStone;}
 }
 function renderPrestige(){
+  const th=document.querySelector("#prestige-screen h2");
+  if(th)th.textContent=t("⭐ 英雄印記天賦","⭐ Prestige Talents");
+  const pb=document.querySelector("#prestige-screen .btn, #prestige-screen .back-btn");
+  if(pb)pb.textContent=t("← 返回","← Back");
   const p=getPrestige();
   const owned=p.owned||{};
   let h=`<div class="small mb-6">${t("英雄印記（永久）","Hero Marks (permanent)")}: <b>${p.points||0}</b> · ${t("累計","Earned")} ${p.totalEarned||0}</div>`;
@@ -2758,14 +2817,16 @@ function endBattle(win){
       if(slot==="shoes")item.spd=1+Math.floor(rar/2);
       if(slot==="weapon"&&rar>=3)item.spd=(item.spd||0)+1;
       applyAffixToItem(item);
-      if(!G.equip[slot] || (G.equip[slot].rarity||0)<rar){
-        // salvage old if replacing
-        if(G.equip[slot]) salvageGear(G.equip[slot], true);
+      if(!G.gearBag)G.gearBag=[];
+      const cur=G.equip[slot];
+      const better=!cur || (item.rarity||0)>(cur.rarity||0) || ((item.atk||0)+(item.def||0))>((cur.atk||0)+(cur.def||0));
+      if(better){
+        if(cur)G.gearBag.push(cur);
         G.equip[slot]=item;
-        addLog(t("掉落裝備【","Dropped gear 【")+tn(item.name)+t("】並自動裝備！","】 and auto-equipped!"));
+        addLog(t("掉落裝備【","Dropped gear 【")+raritySpan(tn(item.name),item.rarity||0)+t("】並裝備！","】 equipped!"));
       }else{
-        salvageGear(item, false);
-        addLog(t("掉落【","Dropped 【")+tn(item.name)+t("】→ 分解為材料","】 → salvaged into materials"));
+        G.gearBag.push(item);
+        addLog(t("掉落裝備【","Dropped gear 【")+raritySpan(tn(item.name),item.rarity||0)+t("】收入背包","】 to bag"));
       }
     }
     
@@ -2848,7 +2909,7 @@ function endBattle(win){
       G.pets.push(eggPet);
       if(!G.activePet)G.activePet=eggPet;
       addLog(t("遺跡通關！獲得龍蛋（幼龍）、龍鱗碎片、永久攻擊 +","Ruins cleared! Dragon Egg (Baby Dragon), Scale Shards, Permanent ATK +")+gain);
-      grantPrestigePoints(2,t("遺跡通關","Ruins clear"));unlockAch("ruins100");unlockAch("firstBoss");
+      grantPrestigePoints(2,t("遺跡通關","Ruins clear"));unlockAch("ruins100");
       showScreen("ruins-screen");
       updateUI();saveGame();renderRuins();
       setTimeout(()=>playRuinsClearCinema(G.ruinsClears), 400);
@@ -3003,7 +3064,10 @@ function renderQuests(){
     const canSubmit = c.progress >= c.need;
     const diffColor=c.diff===2?"r4":c.diff===1?"r3":"r1";
     const diffName=c.diff===2?t("極難","Extreme"):c.diff===1?t("困難","Hard"):t("普通","Normal");
-    h+=`<div class="list-item"><div><b class="${diffColor}">${c.type}</b> ${tn(c.desc)} <span class="tag ${c.diff===2?"red":c.diff===1?"gold":"green"}">${diffName}</span><div class="small">${t("進度","Progress")} ${c.progress}/${c.need} ${t("獎勵","Reward")} ${c.reward}G</div></div>
+    const how = c.type==="Gather"||c.type==="採集資源"||/Gather|採集/.test(c.type+c.desc)
+      ? t("方法：到地圖採集礦／草／木","How: Gather ore/herb/wood on the map")
+      : t("方法：進入森林或遇敵戰鬥","How: Fight in the forest or map battles");
+    h+=`<div class="list-item"><div><b class="${diffColor}">${c.type}</b> ${tn(c.desc)} <span class="tag ${c.diff===2?"red":c.diff===1?"gold":"green"}">${diffName}</span><div class="small">${t("進度","Progress")} ${c.progress}/${c.need} ${t("獎勵","Reward")} ${c.reward}G</div><div class="small">${how}</div>${canSubmit?`<div class="small" style="color:#9fefc3">${t("✅ 可提交！回工會交任務","✅ Ready! Turn in at Guild")}</div>`:""}</div>
       <div>
         <button class="btn small" onclick="submitQ(${i})" ${!canSubmit?"disabled":""}>${t("提交","Submit")}</button>
         <button class="btn small danger" onclick="abandonQ(${i})">${t("放棄","Abandon")}</button>
@@ -3071,8 +3135,28 @@ function renderShop(){
   }
   document.getElementById("shop-content").innerHTML=h;
 }
-function buy(id,p){if(G.gold<p){uiAlert(t("金幣不足","Not enough gold"));return;}G.gold-=p;G.inv[id]=(G.inv[id]||0)+1;addLog(t("購買了 ","Bought ")+itemName(id));updateUI();saveGame();renderShop();}
-function sellItem(id,p){if((G.inv[id]||0)<=0)return;G.inv[id]--;G.gold+=p;addLog(t("賣出 ","Sold ")+itemName(id)+` +${p}G`);updateUI();saveGame();renderShop();}
+function buy(id,p){
+  const maxN=Math.max(1,Math.floor(G.gold/p));
+  const raw=prompt(t("購買數量（最多","Buy qty (max ")+maxN+"）","1");
+  if(raw===null)return;
+  let n=parseInt(raw,10); if(isNaN(n)||n<1)n=1;
+  n=Math.min(n,maxN);
+  const cost=p*n;
+  if(G.gold<cost){uiAlert(t("金幣不足","Not enough gold"));return;}
+  G.gold-=cost;G.inv[id]=(G.inv[id]||0)+n;
+  addLog(t("購買了 ","Bought ")+itemName(id)+" ×"+n);
+  updateUI();saveGame();renderShop();
+}
+function sellItem(id,p){
+  const have=G.inv[id]||0; if(have<=0)return;
+  const raw=prompt(t("賣出數量（最多","Sell qty (max ")+have+"）","1");
+  if(raw===null)return;
+  let n=parseInt(raw,10); if(isNaN(n)||n<1)n=1;
+  n=Math.min(n,have);
+  G.inv[id]-=n;G.gold+=p*n;
+  addLog(t("賣出 ","Sold ")+itemName(id)+" ×"+n+` +${p*n}G`);
+  updateUI();saveGame();renderShop();
+}
 function sellFish(fn,p){if(!G.fishInv||(G.fishInv[fn]||0)<=0)return;G.fishInv[fn]--;G.gold+=p;addLog(t("賣出 ","Sold ")+tn(fn)+` +${p}G`);updateUI();saveGame();renderShop();}
 
 function renderAlchemy(){
@@ -3119,9 +3203,14 @@ function craftEquip(slot,r){
   else {item.def=3+r*3;}
   if(slot==="shoes"){item.spd=1+Math.floor(r/2);}
   applyAffixToItem(item);
-  G.equip[slot]=item;
+  if(!G.gearBag)G.gearBag=[];
+  // Prefer bag: equip if slot empty else store
+  if(!G.equip[slot]){G.equip[slot]=item;}
+  else {G.gearBag.push(item);}
   unlockAch("craft1");
-  addLog(`合成【${item.name}】成功！${item.atk?`ATK+${item.atk}`:""}${item.def?`DEF+${item.def}`:""}${item.spd?`SPD+${item.spd}`:""}`);
+  const stat=`${item.atk?`ATK+${item.atk} `:""}${item.def?`DEF+${item.def} `:""}${item.spd?`SPD+${item.spd}`:""}`.trim();
+  addLog(t("鍛造成功：","Crafted: ")+raritySpan(tn(item.name),item.rarity||0)+" "+stat);
+  uiAlert(t("鍛造成功！\n","Craft success!\n")+tn(item.name)+"\n"+stat+(G.equip[slot]===item?t("\n已裝備。","\nEquipped."):t("\n已放入背包。","\nStored in bag.")));
   updateUI();saveGame();
   if(document.getElementById("blacksmith-screen").classList.contains("active"))renderBlacksmith();
   else renderBag();
@@ -3266,8 +3355,22 @@ function renderBag(){
   document.getElementById("bag-tabs").innerHTML=tabs.map(tb=>`<div class="tab ${bagTab===tb.id?"active":""}" onclick="bagTab='${tb.id}';renderBag()">${tb.n}</div>`).join("");
   let h="";
   if(bagTab==="cons"){
-    const nameMap={potion:"回血藥",mpPotion:"回魔藥",food:"食物",capture:"捕捉球",revive:"復活藥",atkPotion:"加攻藥",defPotion:"加防藥",townScroll:"回城卷",skillStone:"強化石"};
-    ["potion","mpPotion","food","capture","revive","atkPotion","defPotion","townScroll","skillStone"].forEach(k=>{const n=G.inv[k]||0;if(n>0)h+=`<div class="list-item"><span>${itemName(k)} ×${n}</span><button class="btn small" onclick="useBag('${k}')">${t("使用","Use")}</button></div>`;});
+    const effects={
+      potion:t("回復 50 HP","Restore 50 HP"),
+      mpPotion:t("回復 30 MP","Restore 30 MP"),
+      food:t("回復 5 AP + 4 STA","Restore 5 AP + 4 STA"),
+      capture:t("戰鬥中捕捉寵物","Capture pet in battle"),
+      revive:t("復活倒地寵物","Revive fainted pet"),
+      atkPotion:t("臨時攻擊+5","Temp ATK +5"),
+      defPotion:t("臨時防禦+5","Temp DEF +5"),
+      townScroll:t("回到村莊","Return to village"),
+      skillStone:t("用於強化裝備／技能／寵物","Enhance gear/skills/pets")
+    };
+    ["potion","mpPotion","food","capture","revive","atkPotion","defPotion","townScroll","skillStone"].forEach(k=>{
+      const n=G.inv[k]||0; if(n<=0)return;
+      const canUse=["potion","mpPotion","food","townScroll","atkPotion","defPotion"].includes(k);
+      h+=`<div class="list-item"><div><b>${itemName(k)}</b> ×${n}<div class="small">${effects[k]||""}</div></div>${canUse?`<button class="btn small" onclick="useBag('${k}')">${t("使用","Use")}</button>`:""}</div>`;
+    });
     if(G.fishInv){for(let fn in G.fishInv){if(G.fishInv[fn]>0)h+=`<div class="list-item"><span>🐟 ${tn(fn)} ×${G.fishInv[fn]}</span></div>`;}}
   }
   else if(bagTab==="equip"){
@@ -3278,6 +3381,14 @@ function renderBag(){
       let info=e?`<span class="r${e.rarity||0}">${tn(e.name)}</span> +${e.enhance||0}`:t("空","Empty");
       if(e){if(e.atk)info+=` ATK+${e.atk}`;if(e.def)info+=` DEF+${e.def}`;if(e.spd)info+=` SPD+${e.spd}`;if(e.crit)info+=` CRIT+${e.crit}`;if(e.lifesteal)info+=` LS${Math.floor(e.lifesteal*100)}%`;}
       h+=`<div class="list-item"><span>${slotNames[s]||s}: ${info}</span>${e?`<button class="btn small" onclick="enhanceEquip('${s}')">${t("強化","Enhance")}</button><button class="btn small danger" onclick="unequip('${s}')">${t("卸下","Unequip")}</button>`:""}</div>`;
+    });
+    h+=`<div class="small mt-6 mb-6">=== ${t("背包裝備","Stashed Gear")} ===</div>`;
+    if(!G.gearBag)G.gearBag=[];
+    if(!G.gearBag.length)h+=`<div class="small">${t("沒有備用裝備（卸下或掉落較弱裝會放這裡）","No stashed gear")}</div>`;
+    G.gearBag.forEach((e,i)=>{
+      let info=`<span class="r${e.rarity||0}">${tn(e.name)}</span> +${e.enhance||0}`;
+      if(e.atk)info+=` ATK+${e.atk}`;if(e.def)info+=` DEF+${e.def}`;if(e.spd)info+=` SPD+${e.spd}`;
+      h+=`<div class="list-item"><span>${info}</span><button class="btn small" onclick="equipFromBag(${i})">${t("裝備","Equip")}</button><button class="btn small danger" onclick="scrapGear(${i})">${t("分解","Scrap")}</button></div>`;
     });
   }
   else{
@@ -3296,8 +3407,56 @@ function renderBag(){
   }
   document.getElementById("bag-content").innerHTML=h||`<div class='small'>${t("空","Empty")}</div>`;
 }
-function useBag(id){if((G.inv[id]||0)<=0)return;G.inv[id]--;if(id==="potion")G.hp=Math.min(G.maxHp,G.hp+50);if(id==="mpPotion")G.mp=Math.min(G.maxMp,G.mp+30);if(id==="food"){G.ap=Math.min(G.maxAp,G.ap+5);G.stamina=Math.min(G.maxStamina,G.stamina+4);addLog(t("吃了食物，AP+5 STA+4","Ate food: AP+5 STA+4"));}if(id==="townScroll"){G.x=2;G.y=2;addLog(t("使用回城卷","Used Town Scroll"));renderMap();checkTile();}updateUI();saveGame();renderBag();}
-function unequip(slot){if(!G.equip[slot])return;addLog(t("卸下了 ","Unequipped ")+tn(G.equip[slot].name));G.equip[slot]=null;updateUI();saveGame();renderBag();}
+function useBag(id){
+  if((G.inv[id]||0)<=0)return;
+  if(id==="food"){
+    if(G.ap>=G.maxAp&&G.stamina>=G.maxStamina){
+      uiAlert(t("AP 與體力已滿，無需使用食物。","AP and STA are already full."));
+      return;
+    }
+    G.inv[id]--;
+    const apBefore=G.ap;
+    G.ap=Math.min(G.maxAp,G.ap+5);
+    G.stamina=Math.min(G.maxStamina,G.stamina+4);
+    addLog(t("吃了食物，AP+","Ate food, AP+")+(G.ap-apBefore)+t(" STA 回復"," STA restored"));
+    if(G.ap>=G.maxAp)uiAlert(t("AP 已回滿！","AP fully restored!"));
+  }else{
+    G.inv[id]--;
+    if(id==="potion"){G.hp=Math.min(G.maxHp,G.hp+50);addLog(t("使用回血藥 +50HP","Used HP Potion +50HP"));}
+    if(id==="mpPotion"){G.mp=Math.min(G.maxMp,G.mp+30);addLog(t("使用回魔藥 +30MP","Used MP Potion +30MP"));}
+    if(id==="atkPotion"){G._atkBuff=(G._atkBuff||0)+5;addLog(t("攻擊暫時提升！","ATK temporarily up!"));}
+    if(id==="defPotion"){G._defBuff=(G._defBuff||0)+5;addLog(t("防禦暫時提升！","DEF temporarily up!"));}
+    if(id==="townScroll"){G.x=2;G.y=2;addLog(t("使用回城卷","Used Town Scroll"));renderMap();checkTile();}
+  }
+  updateUI();saveGame();renderBag();
+}
+function unequip(slot){
+  if(!G.equip[slot])return;
+  if(!G.gearBag)G.gearBag=[];
+  G.gearBag.push(G.equip[slot]);
+  addLog(t("卸下了 ","Unequipped ")+tn(G.equip[slot].name)+t("（已放入背包）"," (to bag)"));
+  G.equip[slot]=null;
+  updateUI();saveGame();renderBag();
+}
+function equipFromBag(idx){
+  if(!G.gearBag||!G.gearBag[idx])return;
+  const item=G.gearBag[idx];
+  const slot=item.slot||"weapon";
+  if(G.equip[slot])G.gearBag.push(G.equip[slot]);
+  G.equip[slot]=item;
+  G.gearBag.splice(idx,1);
+  addLog(t("裝備了 ","Equipped ")+tn(item.name));
+  updateUI();saveGame();renderBag();
+}
+function scrapGear(idx){
+  if(!G.gearBag||!G.gearBag[idx])return;
+  const item=G.gearBag[idx];
+  const stones=1+Math.floor((item.rarity||0)/2);
+  G.inv.skillStone=(G.inv.skillStone||0)+stones;
+  addLog(t("分解裝備獲得強化石 ×","Scrapped gear for stones ×")+stones);
+  G.gearBag.splice(idx,1);
+  saveGame();renderBag();
+}
 function enhanceEquip(slot){
   const e=G.equip[slot];
   if(!e)return;
@@ -3331,11 +3490,17 @@ function showRarityUpgrade(){
 function upgradeRarity(res,r){
   if(!G.inv[res])G.inv[res]={};
   const have=G.inv[res][r]||0;
-  if(have<3){uiAlert(t("需要至少3個","Need at least 3 ")+rarityName(r)+tn(res));return;}
-  G.inv[res][r]=have-3;
+  const maxN=Math.floor(have/3);
+  if(maxN<1){uiAlert(t("需要至少3個","Need at least 3 ")+rarityName(r)+itemName(res));return;}
+  const raw=prompt(t("合成次數（每次3→1，最多","Craft times (3→1 each, max ")+maxN+"）","1");
+  if(raw===null)return;
+  let times=parseInt(raw,10); if(isNaN(times)||times<1)times=1;
+  times=Math.min(times,maxN);
+  G.inv[res][r]=(G.inv[res][r]||0)-times*3;
   if(G.inv[res][r]<=0)delete G.inv[res][r];
-  G.inv[res][r+1]=(G.inv[res][r+1]||0)+1;
-  addLog(t("合成成功：3個","Crafted: 3x ")+rarityName(r)+tn(res)+" → 1x "+rarityName(r+1)+tn(res));
+  G.inv[res][r+1]=(G.inv[res][r+1]||0)+times;
+  addLog(t("合成成功 ×","Crafted ×")+times+": "+raritySpan(itemName(res),r)+" → "+raritySpan(itemName(res),r+1));
+  uiAlert(t("合成完成 ×","Craft complete ×")+times);
   updateUI();saveGame();renderBag();
 }
 function doFish(){
@@ -3348,8 +3513,10 @@ function doFish(){
   if(!G.fishInv)G.fishInv={};
   G.fishInv[f.n]=(G.fishInv[f.n]||0)+1;
   if(!G.fishCaught)G.fishCaught={};
+  const firstFish=!G.fishCaught[f.n];
   G.fishCaught[f.n]=true;
   addLog(t("釣到【","Caught 【")+tn(f.n)+"】!");
+  if(firstFish)try{codexUnlockFish(f.n);}catch(e){}
   if(Math.random()<0.25){G.inv.food=(G.inv.food||0)+1;addLog(t("順便處理成食物 +1","Also prepared as Food +1"));}
   if(!G.achievements.fish10){let total=0;for(let k in G.fishInv)total+=G.fishInv[k];if(total>=10){G.achievements.fish10=true;G.gold+=80;addLog(t("🏆 成就：釣到10條魚！+80G","🏆 Achievement: Caught 10 fish! +80G"));}}
   updateUI();saveGame();checkTile();
@@ -3428,16 +3595,57 @@ function interactNpc(k){
   if(!G.achievements.npc5){G.achievements.npc5=(G.achievements.npc5||0)+1;if(G.achievements.npc5>=5){G.achievements.npc5=true;G.fame+=15;addLog(t("🏆 成就：與NPC互動5次！+15名氣","🏆 Achievement: Talked to 5 NPCs! +15 Fame"));}}
   updateUI();saveGame();renderMap();checkTile();
 }
-function showCodex(){
-  let h=`<div class="small mb-6">${t("圖鑑","Codex")}</div>`;
-  h+=`<div class="small">=== ${t("魚類","Fish")} ===</div>`;
-  const allFish=["小魚","鯉魚","鱸魚","金魚","傳說魚"];
-  allFish.forEach(f=>{h+=`<div class="list-item"><span>${G.fishCaught&&G.fishCaught[f]?tn(f):"???"}</span></div>`;});
-  h+=`<div class="small mt-6">=== ${t("怪物","Monsters")} ===</div>`;
-  MONSTERS.forEach(m=>{h+=`<div class="list-item"><span>${G.monSeen&&G.monSeen[m.name]?tn(m.name):"???"}</span></div>`;});
+function showCodex(tab){
+  if(!G.codex)G.codex={fish:{},mon:{},rewardsClaimed:{}};
+  const tab0=tab||G._codexTab||"mon";
+  G._codexTab=tab0;
+  const fishList=[{n:"小魚",r:0,bonus:"gold",v:10},{n:"鯉魚",r:1,bonus:"gold",v:20},{n:"鱸魚",r:2,bonus:"atk",v:1},{n:"金魚",r:3,bonus:"fame",v:5},{n:"傳說魚",r:4,bonus:"atk",v:2}];
+  let h=`<div class="tab-bar">
+    <div class="tab ${tab0==="mon"?"active":""}" onclick="showCodex('mon')">${t("怪物","Monsters")}</div>
+    <div class="tab ${tab0==="fish"?"active":""}" onclick="showCodex('fish')">${t("魚類","Fish")}</div>
+  </div>`;
+  h+=`<div class="small mb-6">${t("解鎖圖鑑可獲永久屬性／金幣獎勵（首次）。","First unlock grants permanent stats/gold.")}</div>`;
+  if(tab0==="fish"){
+    fishList.forEach(f=>{
+      const known=!!(G.fishCaught&&G.fishCaught[f.n]);
+      const claimed=G.codex.rewardsClaimed["fish_"+f.n];
+      h+=`<div class="list-item"><div>${known?`🐟 <span class="r${f.r}">${tn(f.n)}</span>`:"❓ ???"}
+        <div class="small">${known?t("獎勵：","Reward: ")+(f.bonus==="atk"?t("永久攻擊 +","Perm ATK +")+f.v:f.bonus==="fame"?t("名氣 +","Fame +")+f.v:t("金幣 +","Gold +")+f.v):t("未發現","Undiscovered")}${claimed?t("（已領）"," (claimed)"):""}</div></div></div>`;
+    });
+  }else{
+    MONSTERS.forEach(m=>{
+      const known=!!(G.monSeen&&G.monSeen[m.name]);
+      const claimed=G.codex.rewardsClaimed["mon_"+m.name];
+      h+=`<div class="list-item"><div>${known?`${m.icon||"•"} <span class="r${m.r||0}">${tn(m.name)}</span>`:"❓ ???"}
+        <div class="small">${known?`HP ${m.hp} ATK ${m.atk} SPD ${m.spd} · ${t("獎勵 永久攻擊+1／金幣","Reward: perm ATK+1 / gold")}${claimed?t("（已領）"," (claimed)"):""}`:t("未遭遇","Not encountered")}</div></div></div>`;
+    });
+  }
   h+=`<button class="btn mt-6" onclick="checkTile()">${t("← 返回","← Back")}</button>`;
   document.getElementById("options").innerHTML=h;
   dialogue(t("圖鑑","Codex"));
+}
+function codexUnlockMonster(enemy){
+  if(!G.codex)G.codex={fish:{},mon:{},rewardsClaimed:{}};
+  const id="mon_"+(enemy.name||"");
+  if(G.codex.rewardsClaimed[id])return;
+  G.codex.rewardsClaimed[id]=true;
+  G.permanentAtk=(G.permanentAtk||0)+1;
+  const g=15+(enemy.rarity||0)*10;
+  G.gold+=g;
+  uiAlert(t("📖 圖鑑解鎖：","📖 Codex unlock: ")+tn(enemy.name)+t("\n永久攻擊 +1\n金幣 +","\nPerm ATK +1\nGold +")+g);
+  addLog(t("圖鑑解鎖 ","Codex unlock ")+tn(enemy.name)+t("：永久攻擊+1"," : perm ATK+1"));
+}
+function codexUnlockFish(fn){
+  if(!G.codex)G.codex={fish:{},mon:{},rewardsClaimed:{}};
+  const id="fish_"+fn;
+  if(G.codex.rewardsClaimed[id])return;
+  G.codex.rewardsClaimed[id]=true;
+  const map={小魚:[0,10],鯉魚:[0,20],鱸魚:[1,0],金魚:[0,0],傳說魚:[2,50]};
+  // atk bonus for higher
+  if(fn==="鱸魚"){G.permanentAtk=(G.permanentAtk||0)+1;uiAlert(t("📖 圖鑑：鱸魚\n永久攻擊 +1","📖 Codex: Bass\nPerm ATK +1"));}
+  else if(fn==="傳說魚"){G.permanentAtk=(G.permanentAtk||0)+2;G.gold+=50;uiAlert(t("📖 圖鑑：傳說魚\n永久攻擊 +2，金幣 +50","📖 Codex: Legendary Fish\nPerm ATK +2, Gold +50"));}
+  else if(fn==="金魚"){G.fame=(G.fame||0)+5;uiAlert(t("📖 圖鑑：金魚\n名氣 +5","📖 Codex: Goldfish\nFame +5"));}
+  else {const g=fn==="鯉魚"?20:10;G.gold+=g;uiAlert(t("📖 圖鑑解鎖：","📖 Codex unlock: ")+tn(fn)+t("\n金幣 +","\nGold +")+g);}
 }
 </script>
 </body>
