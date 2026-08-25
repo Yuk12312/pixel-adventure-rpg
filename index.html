@@ -298,6 +298,9 @@ body{padding:6px;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));min-
 .talent-node{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;background:#1a1a1a;border:1px solid #444;border-radius:6px;margin-bottom:4px}
 .talent-node.owned{border-color:var(--gold);background:#2a2410}
 .affix-tag{color:#7ec8ff;font-size:10px}
+.auth-back,.screen > .btn.mt-6{max-width:280px;margin-left:auto;margin-right:auto;display:block;text-align:center}
+#auth-screen .auth-box .btn,#auth-screen .auth-box .menu-btn{text-align:center}
+#auth-guest input::placeholder{color:#666}
 </style>
 </head>
 <body>
@@ -314,20 +317,23 @@ body{padding:6px;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));min-
 </div>
 
 <div id="auth-screen" class="screen">
-  <h2 class="text-center mb-6">👤 Account</h2>
+  <h2 class="text-center mb-6" id="auth-title">👤 Account</h2>
   <div class="auth-box">
     <div class="auth-status" id="auth-status">Not signed in</div>
-    <input id="auth-email" type="email" placeholder="Email" autocomplete="email">
-    <input id="auth-pass" type="password" placeholder="Password" autocomplete="current-password">
-    <button class="menu-btn" onclick="fbSignIn()">Sign In</button>
-    <button class="menu-btn" onclick="fbSignUp()">Create Account</button>
-    <button class="btn" onclick="fbSignInGoogle()">🔵 Google Sign-In</button>
-    <button class="btn" onclick="fbSignOut()">Sign Out</button>
-    <button class="btn" onclick="cloudSave()">☁️ Save to Cloud</button>
-    <button class="btn" onclick="cloudLoad()">☁️ Load from Cloud</button>
-    <div class="small mt-6" id="auth-hint">Firebase connected to project: pixel-adventure-rpg</div>
+    <div id="auth-guest">
+      <input id="auth-email" type="email" placeholder="Email" autocomplete="email">
+      <input id="auth-pass" type="password" placeholder="Password" autocomplete="current-password">
+      <button class="menu-btn" id="btn-signin" onclick="fbSignIn()">Sign In</button>
+      <button class="menu-btn" id="btn-signup" onclick="fbSignUp()">Create Account</button>
+    </div>
+    <div id="auth-user" style="display:none">
+      <button class="btn" id="btn-cloud-save" onclick="cloudSave()">☁️ Save to Cloud</button>
+      <button class="btn" id="btn-cloud-load" onclick="cloudLoad()">☁️ Load from Cloud</button>
+      <button class="btn danger" id="btn-signout" onclick="fbSignOut()">Sign Out</button>
+    </div>
+    <div class="small mt-6" id="auth-hint"></div>
   </div>
-  <button class="btn mt-6" onclick="showScreen('title-screen')">← Back</button>
+  <button class="btn mt-6 auth-back" onclick="showScreen('title-screen')">← Back</button>
 </div>
 <div id="prestige-screen" class="screen">
   <h2 class="text-center mb-6">⭐ Prestige Talents</h2>
@@ -365,6 +371,7 @@ body{padding:6px;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));min-
 <div id="skill-pick-screen" class="screen">
   <h2 class="text-center mb-6">Select Starting Skill</h2>
   <div id="skill-pick-content"></div>
+  <button class="btn mt-6 auth-back" onclick="showScreen('job-screen')">← Back</button>
 </div>
 
 <div id="game-screen" class="screen">
@@ -1044,6 +1051,10 @@ function applyLanguage(){
   // Skill pick
   const sps=document.querySelector("#skill-pick-screen h2");
   if(sps)sps.textContent=t("選擇初始技能","Select Starting Skill");
+  const spb=document.querySelector("#skill-pick-screen .auth-back");
+  if(spb)spb.textContent=t("← 返回","← Back");
+  if(document.getElementById("auth-screen")?.classList.contains("active")) updateAuthUI();
+  else if(typeof updateAuthUI==="function"){ /* keep labels ready */ try{updateAuthUI();}catch(e){} }
   // Game screen labels - rebuild stats panel labels carefully
   // Bottom buttons
   const gbtns=document.querySelectorAll("#game-screen .flex.mt-6 .btn");
@@ -2005,57 +2016,105 @@ function initFirebase(){
     return true;
   }catch(e){console.warn(e);return false;}
 }
+function friendlyAuthError(e){
+  const code=(e&&e.code)||"";
+  const msg=(e&&e.message)||String(e||"");
+  if(code==="auth/invalid-email"||/invalid-email|badly formatted/i.test(msg))
+    return t("請輸入有效的電郵地址","Please enter a valid email address");
+  if(code==="auth/missing-password"||code==="auth/weak-password")
+    return t("密碼至少需要 6 個字元","Password must be at least 6 characters");
+  if(code==="auth/email-already-in-use")
+    return t("此電郵已被註冊，請直接登入","This email is already registered. Please sign in.");
+  if(code==="auth/user-not-found"||code==="auth/wrong-password"||code==="auth/invalid-credential")
+    return t("電郵或密碼不正確","Incorrect email or password");
+  if(code==="auth/too-many-requests")
+    return t("嘗試次數過多，請稍後再試","Too many attempts. Please try later.");
+  if(code==="auth/unauthorized-domain")
+    return t("此網域尚未授權，請在控制台加入網域","This domain is not authorized. Add it in the console.");
+  if(code==="auth/network-request-failed")
+    return t("網絡錯誤，請檢查連線","Network error. Check your connection.");
+  if(/permission-denied/i.test(msg)||code==="permission-denied")
+    return t("雲端權限不足，請檢查資料庫規則","Cloud permission denied. Check database rules.");
+  // strip Firebase: prefix and code tail
+  let clean=msg.replace(/^Firebase:\s*/i,"").replace(/\s*\([^)]*\)\.?\s*$/,"").trim();
+  if(!clean||clean.length<3) clean=t("操作失敗，請稍後再試","Something went wrong. Please try again.");
+  return clean;
+}
 function updateAuthUI(){
   const el=document.getElementById("auth-status");
+  const guest=document.getElementById("auth-guest");
+  const user=document.getElementById("auth-user");
   if(!el)return;
   if(!window.FIREBASE_CONFIG||!window.FIREBASE_CONFIG.apiKey){
-    el.textContent=t("未設定 Firebase Config","Firebase config not set");
+    el.textContent=t("帳號服務未設定","Account service not configured");
+    if(guest)guest.style.display="block";
+    if(user)user.style.display="none";
     return;
   }
-  if(_fbUser)el.textContent=t("已登入：","Signed in: ")+(_fbUser.email||_fbUser.uid);
-  else el.textContent=t("未登入","Not signed in");
+  if(_fbUser){
+    el.textContent=t("已登入：","Signed in: ")+(_fbUser.email||_fbUser.uid);
+    if(guest)guest.style.display="none";
+    if(user)user.style.display="block";
+  }else{
+    el.textContent=t("未登入 — 註冊後可雲端存檔","Not signed in — register to use cloud save");
+    if(guest)guest.style.display="block";
+    if(user)user.style.display="none";
+  }
+  // placeholders / buttons language
+  const em=document.getElementById("auth-email");
+  const pw=document.getElementById("auth-pass");
+  if(em)em.placeholder=t("電郵","Email");
+  if(pw)pw.placeholder=t("密碼","Password");
+  const map=[
+    ["auth-title",t("👤 帳號","👤 Account")],
+    ["btn-signin",t("登入","Sign In")],
+    ["btn-signup",t("註冊帳號","Create Account")],
+    ["btn-cloud-save",t("☁️ 雲端存檔","☁️ Save to Cloud")],
+    ["btn-cloud-load",t("☁️ 讀取雲端","☁️ Load from Cloud")],
+    ["btn-signout",t("登出","Sign Out")]
+  ];
+  map.forEach(([id,txt])=>{const n=document.getElementById(id);if(n)n.textContent=txt;});
+  const back=document.querySelector("#auth-screen .auth-back");
+  if(back)back.textContent=t("← 返回","← Back");
+  const hint=document.getElementById("auth-hint");
+  if(hint)hint.textContent=_fbUser?t("雲端存檔會同步到你的帳號","Cloud saves sync to your account"):t("使用電郵註冊或登入","Use email to register or sign in");
 }
 function showAuthScreen(){
   initFirebase();
-  updateAuthUI();
   showScreen("auth-screen");
+  updateAuthUI();
   applyLanguage&&applyLanguage();
 }
 function fbSignUp(){
-  if(!initFirebase()){uiAlert(t("請先在頁面設定 FIREBASE_CONFIG","Set FIREBASE_CONFIG first"));return;}
+  if(!initFirebase()){uiAlert(t("帳號服務未就緒","Account service unavailable"));return;}
   const email=document.getElementById("auth-email").value.trim();
   const pass=document.getElementById("auth-pass").value;
   if(!email||!pass){uiAlert(t("請輸入電郵與密碼","Enter email and password"));return;}
+  if(pass.length<6){uiAlert(t("密碼至少需要 6 個字元","Password must be at least 6 characters"));return;}
   _fbAuth.createUserWithEmailAndPassword(email,pass)
-    .then(()=>uiAlert(t("註冊成功","Account created")))
-    .catch(e=>uiAlert(e.message||String(e)));
+    .then(()=>{updateAuthUI();uiAlert(t("註冊成功","Account created"));})
+    .catch(e=>uiAlert(friendlyAuthError(e)));
 }
 function fbSignIn(){
-  if(!initFirebase()){uiAlert(t("請先在頁面設定 FIREBASE_CONFIG","Set FIREBASE_CONFIG first"));return;}
+  if(!initFirebase()){uiAlert(t("帳號服務未就緒","Account service unavailable"));return;}
   const email=document.getElementById("auth-email").value.trim();
   const pass=document.getElementById("auth-pass").value;
+  if(!email||!pass){uiAlert(t("請輸入電郵與密碼","Enter email and password"));return;}
   _fbAuth.signInWithEmailAndPassword(email,pass)
-    .then(()=>uiAlert(t("登入成功","Signed in")))
-    .catch(e=>uiAlert(e.message||String(e)));
-}
-function fbSignInGoogle(){
-  if(!initFirebase()){uiAlert(t("請先在頁面設定 FIREBASE_CONFIG","Set FIREBASE_CONFIG first"));return;}
-  const provider=new firebase.auth.GoogleAuthProvider();
-  _fbAuth.signInWithPopup(provider)
-    .then(()=>uiAlert(t("Google 登入成功","Google sign-in OK")))
-    .catch(e=>uiAlert(e.message||String(e)));
+    .then(()=>{updateAuthUI();uiAlert(t("登入成功","Signed in"));})
+    .catch(e=>uiAlert(friendlyAuthError(e)));
 }
 function fbSignOut(){
   if(!_fbAuth)return;
-  _fbAuth.signOut().then(()=>uiAlert(t("已登出","Signed out")));
+  _fbAuth.signOut().then(()=>{updateAuthUI();uiAlert(t("已登出","Signed out"));});
 }
 function cloudSave(){
   if(!initFirebase()||!_fbUser){uiAlert(t("請先登入","Please sign in first"));return;}
-  if(!G){uiAlert(t("沒有進行中的遊戲","No active game"));return;}
+  if(!G){uiAlert(t("沒有進行中的遊戲，請先開始或讀取本地存檔","No active game. Start or load a local save first."));return;}
   const data={game:G,eventLog:eventLog.slice(-20),availableQuests,updatedAt:Date.now(),name:G.name,day:G.day};
   _fbDb.collection("saves").doc(_fbUser.uid).set(data)
     .then(()=>uiAlert(t("已雲端存檔","Cloud save OK")))
-    .catch(e=>uiAlert(e.message||String(e)));
+    .catch(e=>uiAlert(friendlyAuthError(e)));
 }
 function cloudLoad(){
   if(!initFirebase()||!_fbUser){uiAlert(t("請先登入","Please sign in first"));return;}
@@ -2067,9 +2126,8 @@ function cloudLoad(){
     saveGame();
     showScreen("game-screen");updateUI();renderMap();checkTile();updateObjective();
     uiAlert(t("已載入雲端存檔","Cloud save loaded"));
-  }).catch(e=>uiAlert(e.message||String(e)));
+  }).catch(e=>uiAlert(friendlyAuthError(e)));
 }
-
 
 /* ===== Leaderboard (local) ===== */
 function getLeaderboard(){
