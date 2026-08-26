@@ -584,7 +584,7 @@ function showScreen(id){
 function backFromMenu(){G?showScreen("game-screen"):showScreen("title-screen");}
 function openMenu(){showScreen("ingame-menu");}
 
-function startNewGame(){showScreen("name-screen");}
+function startNewGame(){eventLog=[];renderLog();showScreen("name-screen");}
 function confirmName(){
   const n=document.getElementById("player-name-input").value.trim()||t("冒險者","Adventurer");
   window._playerName=n.substring(0,12);
@@ -608,6 +608,7 @@ function confirmSkill(idx){
   generateAvailableQuests();
   G.storyStage=0;
   G.tutorialStep=1;G.firstGather=true;G.firstBattle=true;
+  eventLog=[];
   applyPrestigeToNewGame();
   G.onboardTips={move:true,gather:true};
   // Day-1 guaranteed nearby resources for fast first feedback
@@ -1413,11 +1414,18 @@ function saveGame(){if(!G)return;G.eventLog=eventLog.slice(-20);G.availableQuest
 function resetAll(){uiConfirm(t("確定重置所有存檔？","Reset all saves?")).then(ok=>{if(!ok)return;for(let i=1;i<=5;i++)localStorage.removeItem("pixel_rpg_slot"+i);G=null;showScreen("title-screen");});}
 /* toggleLang redefined above */
 
-function addLog(msg){eventLog.push(msg);if(eventLog.length>30)eventLog.shift();renderLog();}
+function addLog(msg){
+  eventLog.push(msg);
+  if(eventLog.length>40)eventLog.shift();
+  renderLog();
+}
 function renderLog(){
   const el=document.getElementById("event-log");
   if(!el)return;
-  el.innerHTML=eventLog.slice(0,10).map(m=>`<div class="small">${m}</div>`).join("")||"";
+  // Always show newest first
+  const latest=eventLog.slice().reverse().slice(0,12);
+  el.innerHTML=latest.map(m=>`<div class="small">${m}</div>`).join("")||"";
+  el.scrollTop=0;
 }
 
 function updateUI(){
@@ -1716,14 +1724,12 @@ function tryAutoEatFood(){
 }
 function checkHungerBeforeAct(){
   ensureHunger();
-  if(G.hunger<=0){
-    tryAutoEatFood();
-    if(G.hunger<=0){
-      uiAlert(t("空腹無法行動！\n請使用食物／魚，或回村莊休息。","Too hungry to act!\nUse food/fish, or rest in town."));
-      return false;
-    }
+  if(G.hunger<30)tryAutoEatFood();
+  // Never hard-block movement/actions — only debuff via hungerAtkMul / drain
+  if(G.hunger<=0 && !(G._hungerWarnAt===G.day)){
+    G._hungerWarnAt=G.day;
+    addLog(t("🍖 空腹：攻擊大幅下降，請盡快進食。","🍖 Starving: ATK greatly reduced — eat soon."));
   }
-  if(G.hunger<25)tryAutoEatFood();
   return true;
 }
 
@@ -2571,6 +2577,7 @@ function cloudLoad(){
 function getLeaderboard(){
   try{return JSON.parse(localStorage.getItem("pixel_rpg_lb")||"[]");}catch(e){return [];}
 }
+function loadLeaderboard(){return getLeaderboard();}
 function saveLeaderboard(list){
   localStorage.setItem("pixel_rpg_lb", JSON.stringify(list.slice(0,20)));
 }
@@ -2636,7 +2643,7 @@ function renderLeaderboard(tab){
     const mk=(id,label)=>`<button class="btn small ${tab===id?"guide-pulse":""}" onclick="setLbTab('${id}')">${label}</button>`;
     tabs.innerHTML=mk("easy",t("簡單","Easy"))+mk("normal",t("一般","Normal"))+mk("hard",t("困難","Hard"))+mk("all",t("全部","All"));
   }
-  const local=loadLeaderboard().filter(e=>{
+  const local=(typeof getLeaderboard==="function"?getLeaderboard():[]).filter(e=>{
     if(tab==="all")return true;
     return (e.diff||"normal")===tab;
   });
