@@ -419,6 +419,7 @@ body{padding:6px;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));min-
     <div class="stat-item">💰 <span id="gold">0</span></div>
     <div class="stat-item">🧪 <span id="mp">30</span>/<span id="maxMp">30</span></div>
     <div class="stat-item">🎯 <span id="ap">10</span>/<span id="maxAp">10</span></div>
+    <div class="stat-item">🍖 <span id="hunger">100</span>/<span id="maxHunger">100</span></div>
     <div class="stat-item stat-full">✨ <span id="exp">0</span>/<span id="maxExp">50</span> | 🏅 <span id="rank">F</span></div>
     <div class="stat-item stat-full stat-extra"><span id="fame-label">Fame</span> <span id="fame">0</span>（<span id="fameTitle">Novice Adventurer</span>）</div>
     <div class="stat-item stat-full stat-extra">👤 <span id="playerName">Adventurer</span> | <span id="season">Spring</span> | <span id="weather-label">Weather</span> <span id="weather">Sunny</span></div>
@@ -551,7 +552,7 @@ function defaultGame(mode,diff,job){
     mp:30+j.mp,maxMp:30+j.mp,spd:j.spd,crit:j.crit,
     level:1,exp:0,maxExp:50,gold:200,
     stamina:d.stamina,maxStamina:d.stamina,
-    ap:10+j.ap,maxAp:10+j.ap,
+    ap:10+j.ap,maxAp:10+j.ap,hunger:100,maxHunger:100,
     rank:"F",fame:0,permanentAtk:0,heroTitle:null,heroLevel:0,
     bossRespawnDay:0,ruinsClears:0,weather:"晴天",
     storyStage:0,storyFlags:{},bossKills:0,dropPity:{gear:0,mat:0},
@@ -846,6 +847,51 @@ function uiConfirm(msg){
     {label:t('取消','Cancel'),value:false},
     {label:t('確定','OK'),value:true}
   ]);
+}
+function uiPromptQty(msg, maxN, defVal){
+  maxN=Math.max(1,maxN|0);
+  defVal=Math.min(maxN,Math.max(1,defVal||1));
+  const ov=document.getElementById('modal-overlay');
+  const msgEl=document.getElementById('modal-msg');
+  const act=document.getElementById('modal-actions');
+  if(!ov||!msgEl||!act){
+    const raw=prompt(msg,String(defVal));
+    if(raw===null)return Promise.resolve(null);
+    let n=parseInt(raw,10); if(isNaN(n)||n<1)n=1; return Promise.resolve(Math.min(n,maxN));
+  }
+  msgEl.innerHTML='';
+  const label=document.createElement('div');
+  label.style.marginBottom='10px'; label.style.whiteSpace='pre-wrap';
+  label.textContent=msg;
+  const inp=document.createElement('input');
+  inp.type='number'; inp.min='1'; inp.max=String(maxN); inp.value=String(defVal);
+  inp.style.cssText='width:100%;padding:10px;background:#1a1a1a;border:1px solid #666;color:#eee;border-radius:6px;font-size:16px;box-sizing:border-box;font-family:inherit';
+  const row=document.createElement('div');
+  row.style.cssText='display:flex;gap:6px;margin-top:8px;flex-wrap:wrap';
+  [1,5,10,maxN].filter((v,i,a)=>v<=maxN&&a.indexOf(v)===i).forEach(v=>{
+    const b=document.createElement('button');
+    b.className='btn small'; b.textContent='×'+v;
+    b.onclick=()=>{inp.value=String(v);};
+    row.appendChild(b);
+  });
+  msgEl.appendChild(label); msgEl.appendChild(inp); msgEl.appendChild(row);
+  act.innerHTML='';
+  window._modalCancelable=true;
+  return new Promise(resolve=>{
+    window._modalCb=(v)=>{ resolve(v); };
+    const cancel=document.createElement('button');
+    cancel.className='btn'; cancel.textContent=t('取消','Cancel');
+    cancel.onclick=()=>{ov.classList.remove('show');window._modalCb=null;resolve(null);};
+    const ok=document.createElement('button');
+    ok.className='btn'; ok.textContent=t('確定','OK');
+    ok.onclick=()=>{
+      let n=parseInt(inp.value,10); if(isNaN(n)||n<1)n=1; n=Math.min(n,maxN);
+      ov.classList.remove('show');window._modalCb=null;resolve(n);
+    };
+    act.appendChild(cancel); act.appendChild(ok);
+    ov.classList.add('show');
+    setTimeout(()=>{inp.focus();inp.select();},50);
+  });
 }
 
 
@@ -1384,6 +1430,11 @@ function updateUI(){
   document.getElementById("maxStamina").textContent=G.maxStamina;document.getElementById("day").textContent=G.day;
   document.getElementById("mp").textContent=G.mp;document.getElementById("maxMp").textContent=G.maxMp;
   document.getElementById("ap").textContent=G.ap;document.getElementById("maxAp").textContent=G.maxAp;
+  if(document.getElementById("hunger")){
+    if(G.hunger==null)G.hunger=100; if(G.maxHunger==null)G.maxHunger=100;
+    document.getElementById("hunger").textContent=Math.floor(G.hunger);
+    document.getElementById("maxHunger").textContent=G.maxHunger;
+  }
   document.getElementById("exp").textContent=G.exp;document.getElementById("maxExp").textContent=G.maxExp;
   document.getElementById("rank").textContent=G.rank;document.getElementById("fame").textContent=G.fame;
   document.getElementById("fameTitle").textContent=(G.ruinsTitle?G.ruinsTitle+" · ":"")+fameTitleOf(G.fame,G.heroTitle);
@@ -1392,7 +1443,7 @@ function updateUI(){
   if(document.getElementById("weather"))document.getElementById("weather").textContent=tn(G.weather||"晴天");
   if(document.getElementById("season"))document.getElementById("season").textContent=tn(G.season||"春");
 }
-function totalAtk(){let a=G.atk+G.permanentAtk+(G.equip.weapon?.atk||0)+(G.activePet?.atk||0)+(G.heroTitle?5:0)+(G.heroLevel||0)*2;const p=G.prestige||getPrestige();if(p.atkPct)a=Math.floor(a*(1+p.atkPct));return a;}
+function totalAtk(){let a=G.atk+G.permanentAtk+(G.equip.weapon?.atk||0)+(G.activePet?.atk||0)+(G.heroTitle?5:0)+(G.heroLevel||0)*2;const p=G.prestige||getPrestige();if(p.atkPct)a=Math.floor(a*(1+p.atkPct));a=Math.floor(a*hungerAtkMul());return a;}
 function totalDef(){let d=G.def;["head","body","pants","shoes","necklace","ring"].forEach(s=>{if(G.equip[s])d+=(G.equip[s].def||0);});return d;}
 function totalSpd(){let s=G.spd+(G.activePet?.spd||0);["head","body","pants","shoes","necklace","ring","weapon"].forEach(slot=>{if(G.equip[slot]&&G.equip[slot].spd)s+=G.equip[slot].spd;});const p=G.prestige||getPrestige();if(p.spd)s+=p.spd;return s;}
 
@@ -1515,7 +1566,7 @@ function forceNextDay(){
     }
   });
 }
-function nextDay(){G.day++;if(G.mode==="normal"&&G.day>300){dialogue(t("300日已過","300 days have passed"));return;}G.stamina=G.maxStamina;G.ap=G.maxAp;G.mp=G.maxMp;refreshDaily();
+function nextDay(){G.day++;if(G.mode==="normal"&&G.day>300){dialogue(t("300日已過","300 days have passed"));return;}G.stamina=G.maxStamina;G.ap=G.maxAp;G.mp=G.maxMp;ensureHunger();drainHunger(12+Math.floor(Math.random()*6));tryAutoEatFood();refreshDaily();
   const stories=LANG==="zh"?["你夢到遠方有一座發光的塔。","村民傳說來了一位神秘旅人。","今天風特別大，感覺有大事發生。","你感覺體內力量又增強了一點。","森林深處傳來奇怪的聲音。","天空出現罕見的雙彩虹。","有人喺酒館講起魔王窟嘅傳聞。","你喺路上看見殘破的勇者紋章。"]:["You dream of a glowing tower in the distance.","Villagers say a mysterious traveler arrived.","The wind is strong today—something big may happen.","You feel power growing within.","Strange sounds come from deep in the forest.","A rare double rainbow appears in the sky.","Tavern talk mentions the Demon Lair.","You spot a broken hero crest on the road."];
   if(Math.random()<0.45){const s=stories[Math.floor(Math.random()*stories.length)];addLog(`📜 ${s}`);}
   // Milestone guidance
@@ -1602,45 +1653,99 @@ function checkTile(){
 }
 function dialogue(msg){document.getElementById("dialogue").textContent=msg;}
 
-function checkApEmpty(){
-  if(G.ap>0)return false;
-  // Auto-use food until AP full or food gone
-  if(G.autoFood!==false && (G.inv.food||0)>0){
-    let used=0;
-    while(G.ap<G.maxAp && (G.inv.food||0)>0){
-      G.inv.food--;
-      G.ap=Math.min(G.maxAp,G.ap+5);
-      G.stamina=Math.min(G.maxStamina,G.stamina+4);
-      used++;
-    }
-    if(used){
-      addLog(t("自動食用食物 ×","Auto-ate food ×")+used+t("，AP "," — AP ")+G.ap+"/"+G.maxAp);
-      updateUI();saveGame();
-      if(G.ap>0)return false;
-    }
-    if((G.inv.food||0)<=0){
-      uiAlert(t("食物已用完，AP 仍不足。\n按 ⏭ 進入下一日，或回村購買／烹飪食物。","Food used up; AP still low.\nPress ⏭ for next day, or cook/buy food in town."));
-      return true;
+
+/* ===== Hunger System ===== */
+function ensureHunger(){
+  if(!G)return;
+  if(G.hunger==null)G.hunger=100;
+  if(G.maxHunger==null)G.maxHunger=100;
+}
+function hungerTier(){
+  ensureHunger();
+  const h=G.hunger;
+  if(h>=70)return 0; // full
+  if(h>=40)return 1; // ok
+  if(h>=20)return 2; // hungry
+  if(h>0)return 3;   // starving
+  return 4;          // empty
+}
+function hungerLabel(){
+  const t0=hungerTier();
+  return [t("飽足","Full"),t("正常","OK"),t("飢餓","Hungry"),t("非常餓","Starving"),t("空腹","Empty")][t0];
+}
+function hungerAtkMul(){
+  const t0=hungerTier();
+  return [1,1,0.92,0.8,0.65][t0];
+}
+function hungerStaDrainExtra(){
+  const t0=hungerTier();
+  return [0,0,0,1,1][t0]; // extra STA cost when starving
+}
+function drainHunger(amount){
+  ensureHunger();
+  const before=hungerTier();
+  G.hunger=Math.max(0,G.hunger-amount);
+  const after=hungerTier();
+  if(after>before){
+    addLog(t("🍖 飢餓狀態：","🍖 Hunger: ")+hungerLabel());
+    if(after>=3)uiAlert(t("你很餓……戰鬥與行動會變弱。\n快吃食物或魚！","You are hungry... combat and actions weaken.\nEat food or fish!"));
+  }
+}
+function feedHunger(amount,src){
+  ensureHunger();
+  const before=G.hunger;
+  G.hunger=Math.min(G.maxHunger,G.hunger+amount);
+  const gained=Math.floor(G.hunger-before);
+  addLog((src||t("進食","Ate"))+t("：飢餓 +"," : Hunger +")+gained+t("（"," (")+Math.floor(G.hunger)+"/"+G.maxHunger+"）");
+  return gained;
+}
+function tryAutoEatFood(){
+  if(!G||G.autoFood===false)return false;
+  ensureHunger();
+  let used=0;
+  // Prefer keep hunger high; also help STA a bit
+  while((G.inv.food||0)>0 && G.hunger<G.maxHunger-5){
+    G.inv.food--;
+    feedHunger(35,t("自動進食","Auto-eat"));
+    G.stamina=Math.min(G.maxStamina,G.stamina+4);
+    used++;
+    if(used>=8)break;
+  }
+  if(used){updateUI();saveGame();return true;}
+  return false;
+}
+function checkHungerBeforeAct(){
+  ensureHunger();
+  if(G.hunger<=0){
+    tryAutoEatFood();
+    if(G.hunger<=0){
+      uiAlert(t("空腹無法行動！\n請使用食物／魚，或回村莊休息。","Too hungry to act!\nUse food/fish, or rest in town."));
+      return false;
     }
   }
-  const hasFood=(G.inv.food||0)>0;
-  uiAlert(t("行動值（AP）已用完！\n","Action Points (AP) depleted!\n")+(hasFood?t("可在設定開啟自動使用食物，或手動從背包使用。\n也可按 ⏭ 下一日。","Enable auto-food in Settings, or use Food from bag.\nOr press ⏭ for next day."):t("按 ⏭ 進入下一日，或回村莊休息／買食物。","Press ⏭ for next day, or rest / buy food.")));
+  if(G.hunger<25)tryAutoEatFood();
   return true;
 }
-function gather(k){if(G.stamina<1||G.ap<1){if(G.ap<1)checkApEmpty();else uiAlert(t("體力不足","Not enough STA"));return;}G.stamina--;G.ap--;const ev=G.mapEvents[k];if(!G.inv[ev.res])G.inv[ev.res]={};let rar=0;{const rr=Math.random();if(rr>0.992)rar=4;else if(rr>0.96)rar=3;else if(rr>0.88)rar=2;else if(rr>0.62)rar=1;}G.inv[ev.res][rar]=(G.inv[ev.res][rar]||0)+1;addLog(t("採集到 ","Gathered ")+raritySpan(itemName(ev.res)+"（"+rarityName(rar)+"）",rar));let gexp=6+Math.floor(Math.random()*5);if(G.level<5)gexp=Math.floor(gexp*1.6);if(G.level<3)gexp+=4;if(G.firstGather){G.firstGather=false;gexp+=12;G.gold+=15;addLog(t("🌟 第一次採集獎勵！","🌟 First gather bonus!"));sfxRare();if(G.tutorialStep===1){G.tutorialStep=2;updateObjective();}}G.exp+=gexp;addLog(t("採集獲得 EXP+","Gather EXP+")+gexp);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.35);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;G.gold+=10+G.level*2;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(t("等級","Lv")+G.level+t("！AP上限+1","! AP max +1"));}sfxLevel();addLog(t("升級！Lv.","Level up! Lv.")+G.level+t("（獎勵金幣）"," (gold bonus)"));if(G.tutorialStep&&G.tutorialStep<3&&G.level>=3){G.tutorialStep=3;updateObjective();uiAlert(t("太好了！你達到 3 級。\n回村莊解鎖工會，接第一個任務吧。","Great! You reached Lv.3.\nReturn to the village to unlock the Guild and take a quest."));}}if(ev.res==="ore"&&Math.random()<0.12){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog(t("採礦幸運獲得強化石！","Lucky mining: Enhance Stone!"));}if(Math.random()<0.4){G.stamina=Math.min(G.maxStamina,G.stamina+1);addLog(t("採集時恢復了 1 體力","Gathering restored 1 STA"));}
+
+function checkApEmpty(){
+  if(G.ap>0)return false;
+  uiAlert(t("行動值（AP）已用完！\n按 ⏭ 進入下一日回復，或回村莊休息。\n（食物用於飢餓值，不再回復 AP）","AP depleted!\nPress ⏭ for next day, or rest in town.\n(Food restores Hunger, not AP)"));
+  return true;
+}
+function gather(k){if(!checkHungerBeforeAct())return;if(G.stamina<1||G.ap<1){if(G.ap<1)checkApEmpty();else uiAlert(t("體力不足","Not enough STA"));return;}G.stamina--;G.ap--;drainHunger(2+hungerStaDrainExtra());const ev=G.mapEvents[k];if(!G.inv[ev.res])G.inv[ev.res]={};let rar=0;{const rr=Math.random();if(rr>0.992)rar=4;else if(rr>0.96)rar=3;else if(rr>0.88)rar=2;else if(rr>0.62)rar=1;}G.inv[ev.res][rar]=(G.inv[ev.res][rar]||0)+1;addLog(t("採集到 ","Gathered ")+raritySpan(itemName(ev.res)+"（"+rarityName(rar)+"）",rar));let gexp=6+Math.floor(Math.random()*5);if(G.level<5)gexp=Math.floor(gexp*1.6);if(G.level<3)gexp+=4;if(G.firstGather){G.firstGather=false;gexp+=12;G.gold+=15;addLog(t("🌟 第一次採集獎勵！","🌟 First gather bonus!"));sfxRare();if(G.tutorialStep===1){G.tutorialStep=2;updateObjective();}}G.exp+=gexp;addLog(t("採集獲得 EXP+","Gather EXP+")+gexp);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.35);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;G.gold+=10+G.level*2;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(t("等級","Lv")+G.level+t("！AP上限+1","! AP max +1"));}sfxLevel();addLog(t("升級！Lv.","Level up! Lv.")+G.level+t("（獎勵金幣）"," (gold bonus)"));if(G.tutorialStep&&G.tutorialStep<3&&G.level>=3){G.tutorialStep=3;updateObjective();uiAlert(t("太好了！你達到 3 級。\n回村莊解鎖工會，接第一個任務吧。","Great! You reached Lv.3.\nReturn to the village to unlock the Guild and take a quest."));}}if(ev.res==="ore"&&Math.random()<0.12){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog(t("採礦幸運獲得強化石！","Lucky mining: Enhance Stone!"));}if(Math.random()<0.4){G.stamina=Math.min(G.maxStamina,G.stamina+1);addLog(t("採集時恢復了 1 體力","Gathering restored 1 STA"));}
   if(Math.random()<0.12){G.inv.food=(G.inv.food||0)+1;addLog(t("發現可食用的食材 +1 食物","Found edible supplies +1 Food"));}
   sfxGather();updateQuestProgress("Gather",1);ensureAch();G.stats.gathers=(G.stats.gathers||0)+1;if(G.stats.gathers>=50)unlockAch("gather50");delete G.mapEvents[k];updateUI();saveGame();checkTile();}
-function gatherFixed(type){if(G.stamina<1||G.ap<1){if(G.ap<1)checkApEmpty();else uiAlert(t("體力不足","Not enough STA"));return;}G.stamina--;G.ap--;const map={mine:"ore",herb:"herb",wood:"wood"};const res=map[type];let rar=0;{const rr=Math.random();if(rr>0.992)rar=4;else if(rr>0.96)rar=3;else if(rr>0.88)rar=2;else if(rr>0.62)rar=1;}if(!G.inv[res])G.inv[res]={};G.inv[res][rar]=(G.inv[res][rar]||0)+1;addLog(t("採集到 ","Gathered ")+raritySpan(itemName(res)+"（"+rarityName(rar)+"）",rar));let gexp=6+Math.floor(Math.random()*5);if(G.level<5)gexp=Math.floor(gexp*1.6);if(G.level<3)gexp+=4;if(G.firstGather){G.firstGather=false;gexp+=12;G.gold+=15;addLog(t("🌟 第一次採集獎勵！","🌟 First gather bonus!"));sfxRare();if(G.tutorialStep===1){G.tutorialStep=2;}}G.exp+=gexp;addLog(t("採集獲得 EXP+","Gather EXP+")+gexp);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.35);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;G.gold+=10+G.level*2;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(t("等級","Lv")+G.level+t("！AP上限+1","! AP max +1"));}addLog(t("升級！Lv.","Level up! Lv.")+G.level+t("（獎勵金幣）"," (gold bonus)"));}if(type==="mine"&&Math.random()<0.12){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog(t("採礦幸運獲得強化石！","Lucky mining: Enhance Stone!"));}if(Math.random()<0.4){G.stamina=Math.min(G.maxStamina,G.stamina+1);addLog(t("採集時恢復了 1 體力","Gathering restored 1 STA"));}updateQuestProgress("Gather",1);updateUI();saveGame();}
+function gatherFixed(type){if(!checkHungerBeforeAct())return;if(G.stamina<1||G.ap<1){if(G.ap<1)checkApEmpty();else uiAlert(t("體力不足","Not enough STA"));return;}drainHunger(2);G.stamina--;G.ap--;const map={mine:"ore",herb:"herb",wood:"wood"};const res=map[type];let rar=0;{const rr=Math.random();if(rr>0.992)rar=4;else if(rr>0.96)rar=3;else if(rr>0.88)rar=2;else if(rr>0.62)rar=1;}if(!G.inv[res])G.inv[res]={};G.inv[res][rar]=(G.inv[res][rar]||0)+1;addLog(t("採集到 ","Gathered ")+raritySpan(itemName(res)+"（"+rarityName(rar)+"）",rar));let gexp=6+Math.floor(Math.random()*5);if(G.level<5)gexp=Math.floor(gexp*1.6);if(G.level<3)gexp+=4;if(G.firstGather){G.firstGather=false;gexp+=12;G.gold+=15;addLog(t("🌟 第一次採集獎勵！","🌟 First gather bonus!"));sfxRare();if(G.tutorialStep===1){G.tutorialStep=2;}}G.exp+=gexp;addLog(t("採集獲得 EXP+","Gather EXP+")+gexp);while(G.exp>=G.maxExp){G.exp-=G.maxExp;G.level++;G.maxExp=Math.floor(G.maxExp*1.35);G.maxHp+=14;G.hp=G.maxHp;G.atk+=3;G.gold+=10+G.level*2;if(G.level%5===0){G.maxAp+=1;G.ap=G.maxAp;addLog(t("等級","Lv")+G.level+t("！AP上限+1","! AP max +1"));}addLog(t("升級！Lv.","Level up! Lv.")+G.level+t("（獎勵金幣）"," (gold bonus)"));}if(type==="mine"&&Math.random()<0.12){G.inv.skillStone=(G.inv.skillStone||0)+1;addLog(t("採礦幸運獲得強化石！","Lucky mining: Enhance Stone!"));}if(Math.random()<0.4){G.stamina=Math.min(G.maxStamina,G.stamina+1);addLog(t("採集時恢復了 1 體力","Gathering restored 1 STA"));}updateQuestProgress("Gather",1);updateUI();saveGame();}
 function cookFood(){
   if(G.gold<12){uiAlert(t("金幣不足","Not enough gold"));return;}
   G.gold-=12;G.inv.food=(G.inv.food||0)+2;
   addLog(t("在村莊廚房烹飪，獲得食物 ×2","Cooked in the village kitchen: Food ×2"));
   updateUI();saveGame();checkTile();
 }
-function rest(){G.hp=G.maxHp;G.mp=G.maxMp;G.stamina=G.maxStamina;G.ap=G.maxAp;addLog(t("休息完畢，狀態全回復。","Rested — fully recovered."));nextDay();}
+function rest(){G.hp=G.maxHp;G.mp=G.maxMp;G.stamina=G.maxStamina;G.ap=G.maxAp;ensureHunger();G.hunger=Math.min(G.maxHunger,G.hunger+25);addLog(t("休息完畢，狀態全回復，飢餓稍減。","Rested — recovered; hunger eased a bit."));nextDay();}
 
 /* ========== 戰鬥（含魔王狂暴） ========== */
-function startForestBattle(){if(G.ap<1){checkApEmpty();return;}G.ap--;const m=MONSTERS[Math.floor(Math.random()*MONSTERS.length)];const mul=(0.9+Math.random()*0.35)*(1+G.day*0.018)*DIFF[G.diff].monMul;startBattleWith({name:m.name,icon:m.icon,hp:Math.floor(m.hp*mul),atk:Math.floor(m.atk*mul),spd:m.spd,rarity:m.r,maxHp:0});}
+function startForestBattle(){if(!checkHungerBeforeAct())return;if(G.ap<1){checkApEmpty();return;}G.ap--;drainHunger(3);const m=MONSTERS[Math.floor(Math.random()*MONSTERS.length)];const mul=(0.9+Math.random()*0.35)*(1+G.day*0.018)*DIFF[G.diff].monMul;startBattleWith({name:m.name,icon:m.icon,hp:Math.floor(m.hp*mul),atk:Math.floor(m.atk*mul),spd:m.spd,rarity:m.r,maxHp:0});}
 function startBossBattle(){
   const d=DIFF[G.diff]||DIFF.normal;
   const under = (G.level<(d.bossGateLv||7)) || (G.day<(d.bossGateDay||8));
@@ -2139,12 +2244,30 @@ function cloudSubmitAchievements(){
 function cloudSubmitScore(){
   if(!_fbUser||!_fbDb||!G)return;
   const entry={
-    name:G.name,day:G.day,level:G.level,fame:G.fame||0,
-    mode:G.mode||"normal",diff:G.diff||"normal",
+    name:G.name||G.playerName||"Hero",
+    day:G.day,level:G.level,fame:G.fame||0,
+    mode:G.mode||"normal",diff:G.diff||"normal",job:G.job||"",
     bossKills:G.bossKills||0,ruinsHighest:G.ruinsHighest||0,
     updatedAt:Date.now()
   };
   _fbDb.collection("leaderboard").doc(_fbUser.uid).set(entry,{merge:true}).catch(()=>{});
+}
+async function loadCloudLeaderboard(diffFilter){
+  if(!_fbDb){try{initFirebase();}catch(e){}}
+  if(!_fbDb)return [];
+  try{
+    let q=_fbDb.collection("leaderboard").orderBy("day","asc").limit(40);
+    const snap=await q.get();
+    const list=[];
+    snap.forEach(doc=>{
+      const d=doc.data();
+      if(diffFilter&&diffFilter!=="all"&&(d.diff||"normal")!==diffFilter)return;
+      if((d.mode||"normal")!=="normal"&&d.mode!=="endless")return;
+      // prefer normal clear days
+      list.push(d);
+    });
+    return list;
+  }catch(e){console.warn(e);return [];}
 }
 
 
@@ -2508,47 +2631,50 @@ function renderLeaderboard(tab){
   const closeBtn=document.getElementById("lb-close-btn");
   if(title)title.textContent=t("🏆 通關排行榜","🏆 Clear Leaderboard");
   if(closeBtn)closeBtn.textContent=t("關閉","Close");
-  const tabDefs=[
-    {id:"normal", label:t("正常模式","Normal")},
-    {id:"endless", label:t("無盡模式","Endless")},
-    {id:"all", label:t("全部","All")}
-  ];
+  if(sub)sub.textContent=t("正常模式打贏魔王後記錄（日數愈少愈好）· 含線上成績","Normal-mode clears (fewer days better) · includes online");
   if(tabs){
-    tabs.innerHTML=tabDefs.map(td=>
-      `<button type="button" class="lb-tab ${tab===td.id?"active":""}" onclick="setLbTab('${td.id}')">${td.label}</button>`
-    ).join("");
+    const mk=(id,label)=>`<button class="btn small ${tab===id?"guide-pulse":""}" onclick="setLbTab('${id}')">${label}</button>`;
+    tabs.innerHTML=mk("easy",t("簡單","Easy"))+mk("normal",t("一般","Normal"))+mk("hard",t("困難","Hard"))+mk("all",t("全部","All"));
   }
-  const all=getLeaderboard();
-  let list = tab==="all" ? all.slice() : all.filter(e=>(e.mode||"normal")===tab);
-  list.sort((a,b)=>{
-    if(a.day!==b.day) return a.day-b.day;
-    return (b.date||0)-(a.date||0);
+  const local=loadLeaderboard().filter(e=>{
+    if(tab==="all")return true;
+    return (e.diff||"normal")===tab;
   });
-  if(sub){
-    if(tab==="normal") sub.textContent=t("以最快擊敗魔王日數排名（本地）","Ranked by fastest Demon Lord clear (local)");
-    else if(tab==="endless") sub.textContent=t("無盡模式首次擊敗魔王日數（本地）","Endless first Demon Lord clear day (local)");
-    else sub.textContent=t("全部模式通關紀錄（本地）","All mode clear records (local)");
+  // merge cloud async
+  const paint=(list)=>{
+    list=list.slice().sort((a,b)=>(a.day||999)-(b.day||999));
+    // dedupe by name+diff keep best day
+    const seen={};
+    list=list.filter(e=>{
+      const k=(e.name||"?")+"|"+(e.diff||"normal");
+      if(seen[k])return false;
+      seen[k]=true;return true;
+    });
+    if(!body)return;
+    if(!list.length){
+      body.innerHTML=`<div class="small" style="text-align:center;padding:20px">${t("暫無紀錄","No records yet")}</div>`;
+      return;
+    }
+    body.innerHTML=list.slice(0,30).map((e,i)=>{
+      const diffN={easy:t("簡單","Easy"),normal:t("一般","Normal"),hard:t("困難","Hard")}[e.diff]||e.diff;
+      const modeN=e.mode==="endless"?t("無盡","Endless"):t("正常","Normal");
+      const job=typeof jobLabel==="function"?jobLabel(e.job): (e.job||"");
+      const online=e.online? " ☁️":"";
+      return `<div class="lb-row">
+        <div class="lb-rank">#${i+1}</div>
+        <div><div class="lb-name">${e.name||"?"}${online}</div><div class="lb-meta">${modeN} · ${diffN}${job?(" · "+job):""}</div></div>
+        <div class="lb-score">${t("第 ","Day ")}${e.day}${t(" 日","")}</div>
+      </div>`;
+    }).join("");
+  };
+  paint(local);
+  if(typeof loadCloudLeaderboard==="function"){
+    loadCloudLeaderboard(tab).then(cloud=>{
+      if(!cloud||!cloud.length)return;
+      const merged=local.concat(cloud.map(c=>({...c,online:true})));
+      paint(merged);
+    }).catch(()=>{});
   }
-  if(!body)return;
-  if(!list.length){
-    const emptyMsg = tab==="endless"
-      ? t("尚無無盡模式紀錄。\n無盡模式首次打贏魔王後可寫入。","No Endless records yet.\nRecorded after first Demon Lord win in Endless.")
-      : tab==="all"
-        ? t("尚無任何通關紀錄。","No clear records yet.")
-        : t("尚無正常模式紀錄。\n正常模式打贏魔王通關後會寫入。","No Normal records yet.\nSaved when you clear Normal by beating the Demon Lord.");
-    body.innerHTML=`<div class="lb-empty">${emptyMsg}</div>`;
-    return;
-  }
-  body.innerHTML=list.slice(0,20).map((e,i)=>{
-    const diffN={easy:t("簡單","Easy"),normal:t("一般","Normal"),hard:t("困難","Hard")}[e.diff]||e.diff;
-    const modeN=e.mode==="endless"?t("無盡","Endless"):t("正常","Normal");
-    const job=jobLabel(e.job);
-    return `<div class="lb-row">
-      <div class="lb-rank">#${i+1}</div>
-      <div><div class="lb-name">${e.name||"?"}</div><div class="lb-meta">${modeN} · ${diffN}${job?(" · "+job):""}</div></div>
-      <div class="lb-score">${t("第 ","Day ")}${e.day}${t(" 日","")}</div>
-    </div>`;
-  }).join("");
 }
 function recordNormalClearAndEnd(){
   addLeaderboardEntry({
@@ -2559,6 +2685,7 @@ function recordNormalClearAndEnd(){
     job: G.job||"",
     date: Date.now()
   });
+  try{cloudSubmitScore();}catch(e){}
   G.cleared=true;
   saveGame();
   uiAlert(
@@ -2969,8 +3096,7 @@ function renderPets(){
     el.innerHTML=`<div class='small'>${t("尚未擁有寵物。戰鬥中用捕捉球收服怪物吧！","No pets yet. Capture monsters in battle!")}</div>`;
     return;
   }
-  const foodCost=15;
-  el.innerHTML=`<div class="small mb-6">${t("金幣：","Gold: ")}<b style="color:var(--gold)">${G.gold}</b> · ${t("強化石：","Stones: ")}<b>${G.inv.skillStone||0}</b><br>${t("出戰寵物會加攻防速；絆越高，特技與援護越強。","Active pet boosts your power; higher Bond = stronger skills & support.")}</div>`+
+  el.innerHTML=`<div class="small mb-6">${t("金幣：","Gold: ")}<b style="color:var(--gold)">${G.gold}</b> · ${t("強化石：","Stones: ")}<b>${G.inv.skillStone||0}</b> · ${t("食物：","Food: ")}<b>${G.inv.food||0}</b><br>${t("出戰寵物會加攻防速；絆越高，特技與援護越強。餵食消耗 1 食物。","Active pet boosts power; higher Bond = stronger support. Feed costs 1 Food.")}</div>`+
   G.pets.map((p,i)=>{
     const bond=p.bond||0;
     const active=G.activePet&&G.activePet.id===p.id;
@@ -2981,7 +3107,7 @@ function renderPets(){
       </div>
       <div>
         <button class="btn small" onclick="setActive(${i})">${active?t("出戰中","Active"):t("出戰","Deploy")}</button>
-        <button class="btn small" onclick="feedPet(${i})">${t("餵食","Feed")} (${foodCost}G)</button>
+        <button class="btn small" onclick="feedPet(${i})">${t("餵食","Feed")} (1${t("食物","Food")})</button>
         <button class="btn small" onclick="trainPet(${i})">${t("訓練","Train")} (1 ${t("強化石","Stone")})</button>
         <button class="btn small danger" onclick="releasePet(${i})">${t("放生","Release")}</button>
       </div>
@@ -2996,12 +3122,12 @@ function setActive(i){
 }
 function feedPet(i){
   const p=G.pets[i]; if(!p)return;
-  const cost=15;
-  if(G.gold<cost){uiAlert(t("金幣不足","Not enough gold"));return;}
-  G.gold-=cost;
+  if((G.inv.food||0)<1){uiAlert(t("食物不足（可在商店購買或烹飪）","Not enough Food (buy or cook)"));return;}
+  G.inv.food--;
   p.bond=Math.min(100,(p.bond||0)+8);
   p.hp=Math.min(p.maxHp,p.hp+Math.floor(p.maxHp*0.25));
-  addLog(t("餵食 ","Fed ")+tn(p.name)+t("，絆+8，回復部分 HP"," — Bond +8, some HP restored"));
+  addLog(t("餵食 ","Fed ")+tn(p.name)+t("（消耗1食物），絆+8"," (1 Food) — Bond +8"));
+  uiAlert(t("餵食成功\n絆 +8，回復部分 HP\n剩餘食物：","Fed!\nBond +8, some HP\nFood left: ")+(G.inv.food||0));
   saveGame();renderPets();updateUI();
 }
 function trainPet(i){
@@ -3110,14 +3236,27 @@ function abandonQ(i){uiConfirm(t("放棄任務？","Abandon quest?")).then(ok=>{
 
 let shopMode=null;
 function renderShop(){
-  let h=`<div class="small mb-6">${t("金幣：","Gold: ")}${G.gold}</div>`;
+  let h=`<div class="small mb-6">${t("金幣：","Gold: ")}${G.gold} · 🍖 ${t("飢餓","Hunger")} ${Math.floor(G.hunger??100)}/${G.maxHunger||100}</div>`;
   h+=`<div class="flex mb-6"><button class="btn flex-1" onclick="shopMode='buy';renderShop()">🛒 ${t("購買","Buy")}</button><button class="btn flex-1" onclick="shopMode='sell';renderShop()">💰 ${t("賣出","Sell")}</button></div>`;
-  if(shopMode==="buy"){
+  if(shopMode==="buy"||shopMode==null){
+    shopMode="buy";
     h+=`<div class="small">=== ${t("購買列表","Buy List")} ===</div>`;
-    const items=[{id:"potion",n:"回血藥",p:25},{id:"mpPotion",n:"回MP藥",p:30},{id:"food",n:"食物",p:20},{id:"capture",n:"捕捉球",p:40},{id:"revive",n:"復活藥",p:80},{id:"townScroll",n:"回城卷",p:50},{id:"skillStone",n:"強化石",p:60}];
+    const items=[
+      {id:"potion",n:"回血藥",p:25,d_zh:"戰鬥外回復 50 HP",d_en:"Restore 50 HP"},
+      {id:"mpPotion",n:"回MP藥",p:30,d_zh:"回復 30 MP",d_en:"Restore 30 MP"},
+      {id:"food",n:"食物",p:20,d_zh:"回復飢餓 +40、體力 +3；亦可餵寵物",d_en:"Hunger +40, STA +3; also feeds pets"},
+      {id:"capture",n:"捕捉球",p:40,d_zh:"戰鬥中捕捉怪物為寵物",d_en:"Capture monsters as pets"},
+      {id:"revive",n:"復活藥",p:80,d_zh:"復活倒地寵物",d_en:"Revive fainted pet"},
+      {id:"townScroll",n:"回城卷",p:50,d_zh:"立刻返回村莊",d_en:"Return to village"},
+      {id:"skillStone",n:"強化石",p:60,d_zh:"強化裝備／技能／寵物",d_en:"Enhance gear, skills, pets"},
+      {id:"atkPotion",n:"加攻藥",p:45,d_zh:"臨時攻擊 +5",d_en:"Temp ATK +5"},
+      {id:"defPotion",n:"加防藥",p:45,d_zh:"臨時防禦 +5",d_en:"Temp DEF +5"}
+    ];
     items.forEach(s=>{
       const own=(G.inv[s.id]||0);
-      h+=`<div class="list-item"><span class="r0">${tn(s.n)}</span> - ${s.p}G（${t("擁有","Own")} ${own}）</span><button class="btn small" onclick="buy('${s.id}',${s.p})">${t("購買","Buy")}</button></div>`;
+      h+=`<div class="list-item"><div><b class="r0">${tn(s.n)}</b> — ${s.p}G（${t("擁有","Own")} ${own}）
+        <div class="small">${t(s.d_zh,s.d_en)}</div></div>
+        <button class="btn small" onclick="buy('${s.id}',${s.p})">${t("購買","Buy")}</button></div>`;
     });
   }else if(shopMode==="sell"){
     h+=`<div class="small">=== ${t("賣出列表","Sell List")} ===</div>`;
@@ -3128,7 +3267,7 @@ function renderShop(){
         h+=`<div class="list-item"><span>${itemName(id)} ×${n}　${t("可賣","Sell")} ${sellP}G/${t("個","ea")}</span><button class="btn small" onclick="sellItem('${id}',${sellP})">${t("賣出1個","Sell 1")}</button></div>`;
       }
     });
-    if(G.fishInv){for(let fn in G.fishInv){const n=G.fishInv[fn];if(n>0){const sellP=fn==="傳說魚"?150:fn==="金魚"?60:fn==="鱸魚"?30:fn==="鯉魚"?15:8;h+=`<div class="list-item"><span>🐟 ${tn(fn)} ×${n}　${t("可賣","Sell")} ${sellP}G/${t("個","ea")}</span><button class="btn small" onclick="sellFish('${fn}',${sellP})">${t("賣出1個","Sell 1")}</button></div>`;}}}
+    if(G.fishInv){for(let fn in G.fishInv){const n=G.fishInv[fn];if(n>0){const sellP=fn==="傳說魚"?150:fn==="金魚"?60:fn==="鱸魚"?30:fn==="鯉魚"?15:8;h+=`<div class="list-item"><span>🐟 ${tn(fn)} ×${n}　${t("可賣","Sell")} ${sellP}G/${t("個","ea")}</span><button class="btn small" onclick="sellFish('${fn}',${sellP})">${t("賣出","Sell")}</button></div>`;}}}
     if(!h.includes(t("可賣","Sell"))&&!h.includes("可賣"))h+=`<div class="small">${t("暫無可賣物品","Nothing to sell")}</div>`;
   }else{
     h+=`<div class="small">${t("請先選擇「購買」或「賣出」","Please choose Buy or Sell")}</div>`;
@@ -3137,27 +3276,38 @@ function renderShop(){
 }
 function buy(id,p){
   const maxN=Math.max(1,Math.floor(G.gold/p));
-  const raw=prompt(t("購買數量（最多","Buy qty (max ")+maxN+"）","1");
-  if(raw===null)return;
-  let n=parseInt(raw,10); if(isNaN(n)||n<1)n=1;
-  n=Math.min(n,maxN);
-  const cost=p*n;
-  if(G.gold<cost){uiAlert(t("金幣不足","Not enough gold"));return;}
-  G.gold-=cost;G.inv[id]=(G.inv[id]||0)+n;
-  addLog(t("購買了 ","Bought ")+itemName(id)+" ×"+n);
-  updateUI();saveGame();renderShop();
+  uiPromptQty(t("購買 ","Buy ")+itemName(id)+t("\n單價 ","\nPrice ")+p+"G · "+t("最多","max ")+maxN,maxN,1).then(n=>{
+    if(n==null)return;
+    const cost=p*n;
+    if(G.gold<cost){uiAlert(t("金幣不足","Not enough gold"));return;}
+    G.gold-=cost;G.inv[id]=(G.inv[id]||0)+n;
+    addLog(t("購買了 ","Bought ")+itemName(id)+" ×"+n);
+    if(id==="food")tryAutoEatFood();
+    uiAlert(t("購買成功\n","Purchase OK\n")+itemName(id)+" ×"+n);
+    updateUI();saveGame();renderShop();
+  });
 }
 function sellItem(id,p){
   const have=G.inv[id]||0; if(have<=0)return;
-  const raw=prompt(t("賣出數量（最多","Sell qty (max ")+have+"）","1");
-  if(raw===null)return;
-  let n=parseInt(raw,10); if(isNaN(n)||n<1)n=1;
-  n=Math.min(n,have);
-  G.inv[id]-=n;G.gold+=p*n;
-  addLog(t("賣出 ","Sold ")+itemName(id)+" ×"+n+` +${p*n}G`);
-  updateUI();saveGame();renderShop();
+  uiPromptQty(t("賣出 ","Sell ")+itemName(id)+t("\n單價 ","\nPrice ")+p+"G · "+t("最多","max ")+have,have,1).then(n=>{
+    if(n==null)return;
+    G.inv[id]-=n;G.gold+=p*n;
+    addLog(t("賣出 ","Sold ")+itemName(id)+" ×"+n+` +${p*n}G`);
+    uiAlert(t("賣出成功\n","Sold\n")+itemName(id)+" ×"+n+`\n+${p*n}G`);
+    updateUI();saveGame();renderShop();
+  });
 }
-function sellFish(fn,p){if(!G.fishInv||(G.fishInv[fn]||0)<=0)return;G.fishInv[fn]--;G.gold+=p;addLog(t("賣出 ","Sold ")+tn(fn)+` +${p}G`);updateUI();saveGame();renderShop();}
+function sellFish(fn,p){
+  if(!G.fishInv||(G.fishInv[fn]||0)<=0)return;
+  const have=G.fishInv[fn];
+  uiPromptQty(t("賣出 ","Sell ")+tn(fn)+t("\n單價 ","\nPrice ")+p+"G · "+t("最多","max ")+have,have,1).then(n=>{
+    if(n==null)return;
+    G.fishInv[fn]-=n;G.gold+=p*n;
+    addLog(t("賣出 ","Sold ")+tn(fn)+" ×"+n+` +${p*n}G`);
+    uiAlert(t("賣出成功\n","Sold\n")+tn(fn)+" ×"+n+`\n+${p*n}G`);
+    updateUI();saveGame();renderShop();
+  });
+}
 
 function renderAlchemy(){
   const herb0=G.inv.herb[0]||0, herb1=G.inv.herb[1]||0;
@@ -3273,8 +3423,9 @@ function startRuinsFloorBoss(f){
   addBLog(t("第 ","Floor ")+f+t(" 層守衛出現！"," guardian appears!"));
 }
 function exploreRuins(){
+  if(!checkHungerBeforeAct())return;
   if(G.ap<1){checkApEmpty();return;}
-  G.ap--;
+  G.ap--;drainHunger(4);
   const f=G.ruinsFloor;
   // Floor 100: Ancient Dragon
   if(f>=100){
@@ -3358,7 +3509,7 @@ function renderBag(){
     const effects={
       potion:t("回復 50 HP","Restore 50 HP"),
       mpPotion:t("回復 30 MP","Restore 30 MP"),
-      food:t("回復 5 AP + 4 STA","Restore 5 AP + 4 STA"),
+      food:t("回復飢餓值 +40，體力 +3","Restore Hunger +40, STA +3"),
       capture:t("戰鬥中捕捉寵物","Capture pet in battle"),
       revive:t("復活倒地寵物","Revive fainted pet"),
       atkPotion:t("臨時攻擊+5","Temp ATK +5"),
@@ -3371,7 +3522,7 @@ function renderBag(){
       const canUse=["potion","mpPotion","food","townScroll","atkPotion","defPotion"].includes(k);
       h+=`<div class="list-item"><div><b>${itemName(k)}</b> ×${n}<div class="small">${effects[k]||""}</div></div>${canUse?`<button class="btn small" onclick="useBag('${k}')">${t("使用","Use")}</button>`:""}</div>`;
     });
-    if(G.fishInv){for(let fn in G.fishInv){if(G.fishInv[fn]>0)h+=`<div class="list-item"><span>🐟 ${tn(fn)} ×${G.fishInv[fn]}</span></div>`;}}
+    if(G.fishInv){for(let fn in G.fishInv){if(G.fishInv[fn]>0)h+=`<div class="list-item"><div>🐟 ${tn(fn)} ×${G.fishInv[fn]}<div class="small">${t("可食用回復飢餓","Edible: restores hunger")}</div></div><button class="btn small" onclick="eatFish('${fn}')">${t("食用","Eat")}</button></div>`;}}
   }
   else if(bagTab==="equip"){
     const slotNames={head:t("頭盔","Helmet"),body:t("鎧甲","Armor"),pants:t("護腿","Greaves"),shoes:t("鞋子","Boots"),weapon:t("武器","Weapon"),necklace:t("項鏈","Necklace"),ring:t("戒指","Ring")};
@@ -3410,24 +3561,43 @@ function renderBag(){
 function useBag(id){
   if((G.inv[id]||0)<=0)return;
   if(id==="food"){
-    if(G.ap>=G.maxAp&&G.stamina>=G.maxStamina){
-      uiAlert(t("AP 與體力已滿，無需使用食物。","AP and STA are already full."));
+    ensureHunger();
+    if(G.hunger>=G.maxHunger){
+      uiAlert(t("已經吃飽了（飢餓值已滿）。","Already full (hunger maxed)."));
       return;
     }
     G.inv[id]--;
-    const apBefore=G.ap;
-    G.ap=Math.min(G.maxAp,G.ap+5);
-    G.stamina=Math.min(G.maxStamina,G.stamina+4);
-    addLog(t("吃了食物，AP+","Ate food, AP+")+(G.ap-apBefore)+t(" STA 回復"," STA restored"));
-    if(G.ap>=G.maxAp)uiAlert(t("AP 已回滿！","AP fully restored!"));
-  }else{
-    G.inv[id]--;
-    if(id==="potion"){G.hp=Math.min(G.maxHp,G.hp+50);addLog(t("使用回血藥 +50HP","Used HP Potion +50HP"));}
-    if(id==="mpPotion"){G.mp=Math.min(G.maxMp,G.mp+30);addLog(t("使用回魔藥 +30MP","Used MP Potion +30MP"));}
-    if(id==="atkPotion"){G._atkBuff=(G._atkBuff||0)+5;addLog(t("攻擊暫時提升！","ATK temporarily up!"));}
-    if(id==="defPotion"){G._defBuff=(G._defBuff||0)+5;addLog(t("防禦暫時提升！","DEF temporarily up!"));}
-    if(id==="townScroll"){G.x=2;G.y=2;addLog(t("使用回城卷","Used Town Scroll"));renderMap();checkTile();}
-  }
+    feedHunger(40,t("食用食物","Ate food"));
+    G.stamina=Math.min(G.maxStamina,G.stamina+3);
+    uiAlert(t("食用食物\n飢餓 +約40\n體力 +3\n目前：","Ate food\nHunger +~40\nSTA +3\nNow: ")+Math.floor(G.hunger)+"/"+G.maxHunger+"（"+hungerLabel()+"）");
+  }else if(id==="potion"){
+    G.inv[id]--; G.hp=Math.min(G.maxHp,G.hp+50);
+    uiAlert(t("使用回血藥\nHP +50","Used HP Potion\nHP +50"));
+  }else if(id==="mpPotion"){
+    G.inv[id]--; G.mp=Math.min(G.maxMp,G.mp+30);
+    uiAlert(t("使用回魔藥\nMP +30","Used MP Potion\nMP +30"));
+  }else if(id==="atkPotion"){
+    G.inv[id]--; G._atkBuff=(G._atkBuff||0)+5;
+    uiAlert(t("使用加攻藥\n臨時攻擊 +5","Used ATK Potion\nTemp ATK +5"));
+  }else if(id==="defPotion"){
+    G.inv[id]--; G._defBuff=(G._defBuff||0)+5;
+    uiAlert(t("使用加防藥\n臨時防禦 +5","Used DEF Potion\nTemp DEF +5"));
+  }else if(id==="townScroll"){
+    G.inv[id]--; G.x=2;G.y=2;
+    uiAlert(t("使用回城卷\n已回到村莊","Used Town Scroll\nReturned to village"));
+    renderMap();checkTile();
+  }else return;
+  updateUI();saveGame();renderBag();
+}
+function eatFish(fn){
+  if(!G.fishInv||(G.fishInv[fn]||0)<=0)return;
+  ensureHunger();
+  if(G.hunger>=G.maxHunger){uiAlert(t("已經吃飽了。","Already full."));return;}
+  G.fishInv[fn]--;
+  const heal={小魚:15,鯉魚:25,鱸魚:35,金魚:45,傳說魚:60}[fn]||20;
+  feedHunger(heal,t("食用","Ate ")+tn(fn));
+  G.stamina=Math.min(G.maxStamina,G.stamina+2);
+  uiAlert(t("食用","Ate ")+tn(fn)+t("\n飢餓 +","\nHunger +")+heal+t("\n目前：","\nNow: ")+Math.floor(G.hunger)+"/"+G.maxHunger);
   updateUI();saveGame();renderBag();
 }
 function unequip(slot){
@@ -3455,25 +3625,33 @@ function scrapGear(idx){
   G.inv.skillStone=(G.inv.skillStone||0)+stones;
   addLog(t("分解裝備獲得強化石 ×","Scrapped gear for stones ×")+stones);
   G.gearBag.splice(idx,1);
+  uiAlert(t("分解成功\n","Scrapped\n")+tn(item.name)+t("\n獲得強化石 ×","\nEnhance Stones ×")+stones);
   saveGame();renderBag();
 }
 function enhanceEquip(slot){
   const e=G.equip[slot];
   if(!e)return;
-  if((G.inv.skillStone||0)<1){uiAlert(t("強化石不足","Not enough Enhance Stones"));return;}
-  const cur=e.enhance||0;
-  G.inv.skillStone--;
-  const rate=Math.max(0.15,0.85-cur*0.04);
-  if(Math.random()<rate){
-    e.enhance=cur+1;
-    if(e.atk)e.atk+=2+Math.floor(e.rarity/2);
-    if(e.def)e.def+=1+Math.floor(e.rarity/2);
-    if(e.spd)e.spd+=0.5;
-    addLog(`【${tn(e.name)}】`+t("強化成功至 +","Enhanced to +")+e.enhance+"!");
-  }else{
-    addLog(`【${tn(e.name)}】`+t("強化失敗…","Enhance failed..."));
-  }
-  updateUI();saveGame();renderBag();
+  const maxTry=Math.min(10,G.inv.skillStone||0);
+  if(maxTry<1){uiAlert(t("強化石不足","Not enough Enhance Stones"));return;}
+  uiPromptQty(t("強化 ","Enhance ")+tn(e.name)+t("\n目前 +","\nNow +")+(e.enhance||0)+t(" · 最多"," · max ")+maxTry,maxTry,1).then(times=>{
+    if(times==null)return;
+    let ok=0,fail=0;
+    for(let i=0;i<times;i++){
+      if((G.inv.skillStone||0)<1)break;
+      G.inv.skillStone--;
+      const cur=e.enhance||0;
+      const rate=Math.max(0.15,0.85-cur*0.04);
+      if(Math.random()<rate){
+        e.enhance=cur+1;ok++;
+        if(e.atk)e.atk+=2+Math.floor((e.rarity||0)/2);
+        if(e.def)e.def+=1+Math.floor((e.rarity||0)/2);
+        if(e.spd)e.spd+=0.5;
+      }else fail++;
+    }
+    addLog(`【${tn(e.name)}】`+t("強化成功 ","Enhance OK ")+ok+t(" / 失敗 "," / fail ")+fail+t(" → +"," → +")+(e.enhance||0));
+    uiAlert(t("強化完成\n成功 ","Enhance done\nSuccess ")+ok+t(" 次，失敗 "," , fail ")+fail+t("\n目前 +","\nNow +")+(e.enhance||0));
+    updateUI();saveGame();renderBag();
+  });
 }
 function showRarityUpgrade(){
   let h=`<div class="small mb-6">${t("3個低級材料 → 1個高級（適用於礦/藥草/木材）","3 lower materials → 1 higher (ore/herb/wood)")}</div>`;
@@ -3492,20 +3670,20 @@ function upgradeRarity(res,r){
   const have=G.inv[res][r]||0;
   const maxN=Math.floor(have/3);
   if(maxN<1){uiAlert(t("需要至少3個","Need at least 3 ")+rarityName(r)+itemName(res));return;}
-  const raw=prompt(t("合成次數（每次3→1，最多","Craft times (3→1 each, max ")+maxN+"）","1");
-  if(raw===null)return;
-  let times=parseInt(raw,10); if(isNaN(times)||times<1)times=1;
-  times=Math.min(times,maxN);
-  G.inv[res][r]=(G.inv[res][r]||0)-times*3;
-  if(G.inv[res][r]<=0)delete G.inv[res][r];
-  G.inv[res][r+1]=(G.inv[res][r+1]||0)+times;
-  addLog(t("合成成功 ×","Crafted ×")+times+": "+raritySpan(itemName(res),r)+" → "+raritySpan(itemName(res),r+1));
-  uiAlert(t("合成完成 ×","Craft complete ×")+times);
-  updateUI();saveGame();renderBag();
+  uiPromptQty(t("合成次數（3合1，最多","Craft times (3→1, max ")+maxN+")",maxN,1).then(times=>{
+    if(times==null)return;
+    G.inv[res][r]=(G.inv[res][r]||0)-times*3;
+    if(G.inv[res][r]<=0)delete G.inv[res][r];
+    G.inv[res][r+1]=(G.inv[res][r+1]||0)+times;
+    addLog(t("合成成功 ×","Crafted ×")+times+": "+raritySpan(itemName(res),r)+" → "+raritySpan(itemName(res),r+1));
+    uiAlert(t("合成完成 ×","Craft complete ×")+times);
+    updateUI();saveGame();renderBag();
+  });
 }
 function doFish(){
+  if(!checkHungerBeforeAct())return;
   if(G.ap<1){uiAlert(t("AP不足","Not enough AP"));return;}
-  G.ap--;
+  G.ap--;drainHunger(2);
   const fishes=[{n:"小魚",r:0,p:8},{n:"鯉魚",r:1,p:18},{n:"鱸魚",r:2,p:35},{n:"金魚",r:3,p:80},{n:"傳說魚",r:4,p:200}];
   const roll=Math.random();
   let f=fishes[0];
